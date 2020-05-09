@@ -14,6 +14,9 @@ class TestCEDR(unittest.TestCase):
             pt.init()
 
     def test_fit(self):
+        import torch
+        if not torch.cuda.is_available():
+            self.skipTest(reason="No CUDA available")
         qrels = pd.DataFrame([
             ["q1", "d1", 1],
             ["q1", "d2", 0],
