@@ -45,6 +45,7 @@ DPH_br_qe = pt.BatchRetrieve(index, controls={"wmodel" : "DPH", "qe" : "on"}, ve
 ### CEDR Usage
 
 ```python
+from pyterrier_bert.pyt_cedr import CEDRPipeline
 cedrpipe = DPH_br >> CEDRPipeline(max_valid_rank=20)
 # training, this uses validation set to apply early stopping
 cedrpipe.fit(topicsTrain, qrelsTrain, topicsValid, qrelsTrain)
