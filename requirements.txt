@@ -1,0 +1,4 @@
+transformers
+git+https://github.com/Georgetown-IR-Lab/cedr.git
+git+https://github.com/terrier-org/pyterrier.git
+pandas
