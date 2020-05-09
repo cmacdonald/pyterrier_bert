@@ -294,7 +294,6 @@ def train_bert4ir(model, train_dataset, dev_dataset):
                 # Send the logits to the CPU and in numpy form. Easier to check what is going on.
                 preds = logits.detach().cpu().numpy()
                 
-                # Bring the labels to CPU too.
                 tqdm.write(f"Training loss: {loss.item()} Learning Rate: {scheduler.get_last_lr()[0]}")
             global_step += 1
             
