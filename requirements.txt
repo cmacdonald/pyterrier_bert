@@ -1,4 +1,5 @@
 transformers
+torch==1.4.0
 git+https://github.com/Georgetown-IR-Lab/cedr.git
-git+https://github.com/terrier-org/pyterrier.git
+git+https://github.com/terrier-org/pyterrier.git#egg=python-terrier
 pandas
