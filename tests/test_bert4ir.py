@@ -23,7 +23,7 @@ class TestBERT4IR(unittest.TestCase):
     def test_caching_dataset(self):
         df = pd.DataFrame([["q1", "query text", "d1", "doc text", 1]], columns=["qid", "query", "docno", "text", "label"])
         tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-        dataset = CachingDFDataset(df, tokenizer, "train")
+        dataset = CachingDFDataset(df, tokenizer, "train", directory=self.test_dir)
         self.assertEqual(len(dataset), 1)
         # make sure we can obtain with 0.
         x = dataset[0]
@@ -32,7 +32,7 @@ class TestBERT4IR(unittest.TestCase):
     def test_dataset(self):
         df = pd.DataFrame([["q1", "query text", "d1", "doc text", 1]], columns=["qid", "query", "docno", "text", "label"])
         tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-        dataset = CachingDFDataset(df, tokenizer, "train")
+        dataset = DFDataset(df, tokenizer, "train")
         self.assertEqual(len(dataset), 1)
         # make sure we can obtain with 0.
         x = dataset[0]

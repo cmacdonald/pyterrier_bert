@@ -142,7 +142,7 @@ class DFDataset(Dataset):
 
 # This is the caching Dataset class. This dataset does not yet check if the files are there already
 class CachingDFDataset(DFDataset):
-    def __init__(self, df, tokenizer, split, tokenizer_batch=8000):
+    def __init__(self, df, tokenizer, split, directory, tokenizer_batch=8000):
         '''Initialize a Dataset object. 
         Arguments:
             samples: A list of samples. Each sample should be a tuple with (query_id, doc_id, <label>), where label is optional
@@ -152,12 +152,13 @@ class CachingDFDataset(DFDataset):
         '''
         self.samples_offset_dict = dict()
         self.index_dict = dict()
-        self.samples_file = open(path(f"{split}_msmarco_samples.tsv"),'w',encoding="utf-8")        
+        self.directory = directory
+        self.samples_file = open(os.path.join(self.directory, f"{split}_msmarco_samples.tsv"),'w',encoding="utf-8")        
         super().__init__(df, tokenizer, split, tokenizer_batch=8000)
         # Dump files in disk, so we don't need to go over it again.
         self.samples_file.close()
-        pickle.dump(self.index_dict, open(path(f"{split}_msmarco_index.pkl"), 'wb'))
-        pickle.dump(self.samples_offset_dict, open(path(f"{split}_msmarco_offset.pkl"), 'wb'))
+        pickle.dump(self.index_dict, open(os.path.join(self.directory, f"{split}_msmarco_index.pkl"), 'wb'))
+        pickle.dump(self.samples_offset_dict, open(os.path.join(self.directory, f"{split}_msmarco_offset.pkl"), 'wb'))
         self.split = split
         
     def _store(self, sample_id, token_ids, segment_ids, label):
@@ -177,7 +178,7 @@ class CachingDFDataset(DFDataset):
         '''
         if isinstance(idx, int):
             idx = self.index_dict[idx]
-        with open(path(f"{self.split}_msmarco_samples.tsv"), 'r', encoding="utf-8") as inf:
+        with open(os.path.join(self.directory, f"{self.split}_msmarco_samples.tsv"), 'r', encoding="utf-8") as inf:
             inf.seek(self.samples_offset_dict[idx])
             line = inf.readline().split("\t")
             try:
@@ -346,7 +347,7 @@ def train_bert4ir(model, train_dataset, dev_dataset):
                 results = {}
                 results["ROC Dev"] = roc_auc_score(out_label_ids, preds[:, 1])
                 preds = np.argmax(preds, axis=1)
-                results["Acuracy Dev"] = accuracy_score(out_label_ids, preds)
+                results["Accuracy Dev"] = accuracy_score(out_label_ids, preds)
                 results["F1 Dev"] = f1_score(out_label_ids, preds)
                 results["AP Dev"] = average_precision_score(out_label_ids, preds)
                 tqdm.write("***** Eval results *****")
@@ -364,7 +365,7 @@ def bert4ir_score(model, dataset):
     import warnings
     import numpy as np
     if torch.cuda.is_available():
-        # Asssign the model to GPUs, specifying to use Data parallelism.
+        # Assign the model to GPUs, specifying to use Data parallelism.
         model = torch.nn.DataParallel(model, device_ids=GPUS_TO_USE)
         parallel = len(GPUS_TO_USE)
         # The main model should be on the first GPU
