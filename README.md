@@ -32,8 +32,8 @@ qrelsTrain = trecdl.get_qrels("train")
 topicsTrain = trecdl.get_topics("train").head(1000)
 #take 50 topics for validation
 topicsValid = trecdl.get_topics("train").iloc[1001:1050]
-#this one-liner removes topics without relevant documents
-topicsTest = trecdl.get_topics("test").merge(qrelsTest[qrelsTest["label"] > 0][["qid"]])
+#this one-liner removes topics from the test set that do not have relevant documents
+topicsTest = trecdl.get_topics("test").merge(qrelsTest[qrelsTest["label"] > 0][["qid"]].drop_duplicates())
 
 # initial retrieval and QE baseline.
 index = pt.IndexFactory.of(pt.IndexRef.of(indexloc))
