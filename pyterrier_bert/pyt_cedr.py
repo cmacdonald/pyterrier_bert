@@ -46,7 +46,7 @@ class CEDRPipeline(EstimatorBase):
         # check if gpu enabled
         self.model = self.model.cuda() if torch.cuda.is_available() else self.model
         # now load model
-        self.model.load(self, filename)
+        self.model.load(filename)
         
     def fit(self, tr, qrelsTrain, va, qrelsValid):
         
