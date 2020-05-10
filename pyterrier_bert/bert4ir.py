@@ -41,6 +41,19 @@ class BERTPipeline(EstimatorBase):
         tr["score"] = scores
         return tr
 
+    def load(self, filename):
+        import torch
+        self.model.load_state_dict(torch.load(filename), strict=False)
+
+    def save(self, filename):
+        state = self.model.state_dict(keep_vars=True)
+        for key in list(state):
+            if state[key].requires_grad:
+                state[key] = state[key].data
+            else:
+                del state[key]
+        torch.save(state, filename)
+
 class DFDataset(Dataset):
     def __init__(self, df, tokenizer, split, tokenizer_batch=8000):
         '''Initialize a Dataset object. 

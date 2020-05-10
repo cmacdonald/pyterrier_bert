@@ -35,8 +35,18 @@ class CEDRPipeline(EstimatorBase):
             run[row['qid']][row['docno']] = float(1)
         return run
 
-    def save(filename):
+    def save(self, filename):
         self.model.save(filename)
+
+    def load(self, filename):
+        import torch
+        from cedr import train
+        # load the requested model
+        self.model = train.MODEL_MAP[self.modelname]()
+        # check if gpu enabled
+        self.model = self.model.cuda() if torch.cuda.is_available() else self.model
+        # now load model
+        self.model.load(self, filename)
         
     def fit(self, tr, qrelsTrain, va, qrelsValid):
         

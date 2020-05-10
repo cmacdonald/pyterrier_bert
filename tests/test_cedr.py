@@ -3,6 +3,9 @@ import pandas as pd
 import pyterrier as pt
 import os
 import unittest
+import shutil
+import tempfile
+import numpy as np
 
 from pyterrier_bert.pyt_cedr import CEDRPipeline
 
@@ -12,6 +15,14 @@ class TestCEDR(unittest.TestCase):
         super().__init__(*args, **kwargs)
         if not pt.started():
             pt.init()
+
+    def setUp(self):
+        # Create a temporary directory
+        self.test_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        # Remove the directory after the test
+        shutil.rmtree(self.test_dir)
 
     def test_fit(self):
         import torch
@@ -28,7 +39,14 @@ class TestCEDR(unittest.TestCase):
 
         pipe = CEDRPipeline(doc_attr="text")
         pipe.fit(df, qrels, df, qrels)
+        pipe.save(self.test_dir + "/model.weights")
         rtr = pipe.transform(df)
         self.assertEqual(2, len(rtr))
         self.assertTrue("score" in rtr.columns)
-        print(rtr)
+
+        pipe = None
+        pipe = CEDRPipeline(doc_attr="text")
+        pipe.load(self.test_dir + "/model.weights")
+        rtr2 = pipe.transform(df)
+        self.assertTrue(np.allclose(rtr2["score"], rtr["score"]))
+       
