@@ -83,6 +83,7 @@ class CEDRPipeline(EstimatorBase):
     def transform(self, queries_and_docs):
         
         from cedr import train
+        import pandas as pd
         
         test_run = self._make_cedr_run(queries_and_docs, None)
         dataset = self._make_cedr_dataset(queries_and_docs)
