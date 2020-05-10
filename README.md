@@ -1,6 +1,6 @@
 # BERT Estimators for Pyterrier
 
-This package contains two integrations of BERT that can be used with PyTerrier:
+This package contains two integrations of BERT that can be used with [PyTerrier](https://github.com/terrier-org/pyterrier):
 1. [CEDR](https://github.com/Georgetown-IR-Lab/cedr), from the Georgetown IR Lab, by MacAveney et al.
 2. [BERT4IR](https://github.com/ArthurCamara/Bert4IR), by Athur Camara, Unviersity of Delft.
 
