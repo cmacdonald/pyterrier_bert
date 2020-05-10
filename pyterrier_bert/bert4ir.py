@@ -19,17 +19,23 @@ https://github.com/ArthurCamara/Bert4IR/blob/master/Train%20BERT.ipynb
 
 class BERTPipeline(EstimatorBase):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, max_train_rank=None, max_valid_rank=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
         self.model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+        self.max_train_rank = max_train_rank
+        self.max_valid_rank = max_valid_rank
 
     def fit(self, tr, qrels_tr, va, qrels_va): 
-        #TODO apply cutoffs for validation and training
         if qrels_tr is not None:
             tr = tr.merge(qrels_tr, on=["qid", "docno"], how="left")
         if qrels_va is not None:
             va = va.merge(qrels_va, on=["qid", "docno"], how="left")
+        if self.max_train_rank is not None:
+            tr = tr[tr["rank"] < self.max_train_rank]
+        if self.max_valid_rank is not None:
+            va = va[va["rank"] < self.max_valid_rank]
+        
         tr_dataset = DFDataset(tr, self.tokenizer, "train")
         va_dataset = DFDataset(tr, self.tokenizer, "valid")
         self.model = train_bert4ir(self.model, tr_dataset, va_dataset)
