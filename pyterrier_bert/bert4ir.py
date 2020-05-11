@@ -19,12 +19,13 @@ https://github.com/ArthurCamara/Bert4IR/blob/master/Train%20BERT.ipynb
 
 class BERTPipeline(EstimatorBase):
 
-    def __init__(self, *args, max_train_rank=None, max_valid_rank=None, **kwargs):
+    def __init__(self, *args, doc_attr="body", max_train_rank=None, max_valid_rank=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
         self.model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         self.max_train_rank = max_train_rank
         self.max_valid_rank = max_valid_rank
+        self.doc_attr = doc_attr
 
     def fit(self, tr, qrels_tr, va, qrels_va): 
         if qrels_tr is not None:
@@ -36,8 +37,8 @@ class BERTPipeline(EstimatorBase):
         if self.max_valid_rank is not None:
             va = va[va["rank"] < self.max_valid_rank]
         
-        tr_dataset = DFDataset(tr, self.tokenizer, "train")
-        va_dataset = DFDataset(tr, self.tokenizer, "valid")
+        tr_dataset = DFDataset(tr, self.tokenizer, "train", self.doc_attr)
+        va_dataset = DFDataset(tr, self.tokenizer, "valid", self.doc_attr)
         self.model = train_bert4ir(self.model, tr_dataset, va_dataset)
         return self
         
@@ -61,7 +62,7 @@ class BERTPipeline(EstimatorBase):
         torch.save(state, filename)
 
 class DFDataset(Dataset):
-    def __init__(self, df, tokenizer, split, tokenizer_batch=8000):
+    def __init__(self, df, tokenizer, split, tokenizer_batch=8000, doc_attr="body",):
         '''Initialize a Dataset object. 
         Arguments:
             samples: A list of samples. Each sample should be a tuple with (query_id, doc_id, <label>), where label is optional
@@ -82,7 +83,7 @@ class DFDataset(Dataset):
         with tqdm(total=number_of_batches, desc="Tokenizer batches") as batch_pbar:
             for i, row in df.iterrows():
                 query_batch.append(row["query"])
-                doc_batch.append(row["text"])
+                doc_batch.append(row[doc_attr])
                 sample_ids_batch.append(row["qid"] + "_" + row["docno"])
                 if self.labels_present:
                     labels_batch.append(row["label"])
