@@ -45,6 +45,7 @@ class TestBERT4IR(unittest.TestCase):
         self.assertTrue(len(longdoc) > 512)
         df = pd.DataFrame([
             ["q1", "query text", "d1", "doc text", 1],
+            ["q1", "query text", "d1", longdocstring, 0],
             ["q1", "query text", "d1", " ".join(longdoc), 0],
             ], columns=["qid", "query", "docno", "text", "label"])
 
@@ -52,7 +53,11 @@ class TestBERT4IR(unittest.TestCase):
         pipe.fit(df, None, df, None)
         pipe.save(self.test_dir + "/model.weights")
         rtr = pipe.transform(df)
-        self.assertEqual(2, len(rtr))
+        self.assertEqual(3, len(rtr))
+        self.assertTrue("score" in rtr.columns)
+        pipe.test_batch_size = 1
+        rtr = pipe.transform(df)
+        self.assertEqual(3, len(rtr))
         self.assertTrue("score" in rtr.columns)
         
         # check we can save and load a model

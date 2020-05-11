@@ -26,6 +26,7 @@ class BERTPipeline(EstimatorBase):
         self.max_train_rank = max_train_rank
         self.max_valid_rank = max_valid_rank
         self.doc_attr = doc_attr
+        self.test_batch_size = 32
 
     def fit(self, tr, qrels_tr, va, qrels_va): 
         if qrels_tr is not None:
@@ -48,7 +49,8 @@ class BERTPipeline(EstimatorBase):
         
     def transform(self, tr):
         te_dataset = DFDataset(tr, self.tokenizer, "test", doc_attr = self.doc_attr)
-        scores = bert4ir_score(self.model, te_dataset)
+        # we permit to adjust the batch size to allow better testing
+        scores = bert4ir_score(self.model, te_dataset, batch_size=self.test_batch_size)
         assert len(scores) == len(tr), "Expected %d scores, but got %d" % (len(tr), len(scores))
         tr["score"] = scores
         return tr
@@ -247,7 +249,7 @@ def train_bert4ir(model, train_dataset, dev_dataset):
         parallel = number_of_cpus
 
     # A data loader is a nice device for generating batches for you easily.
-    # It receives any object that implementes __getitem__(self, idx) and __len__(self)
+    # It receives any object that implements __getitem__(self, idx) and __len__(self)
     train_data_loader = DataLoader(train_dataset, batch_size=train_batch_size, num_workers=number_of_cpus,shuffle=True)
     dev_data_loader = DataLoader(dev_dataset, batch_size=32, num_workers=number_of_cpus,shuffle=True)
 
@@ -367,7 +369,7 @@ def train_bert4ir(model, train_dataset, dev_dataset):
     model_to_save.save_pretrained(output_dir)
     return model_to_save
 
-def bert4ir_score(model, dataset):
+def bert4ir_score(model, dataset, batch_size=32):
     import warnings
     import numpy as np
     if torch.cuda.is_available():
@@ -389,7 +391,7 @@ def bert4ir_score(model, dataset):
 
     preds = None
     nb_eval_steps = 0
-    data_loader = DataLoader(dataset, batch_size=32, num_workers=number_of_cpus,shuffle=False)
+    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=number_of_cpus,shuffle=False)
     for batch in tqdm(data_loader, desc="Valid batch"):
         model.eval()
         
@@ -403,13 +405,20 @@ def bert4ir_score(model, dataset):
                 warnings.simplefilter("ignore")
                 outputs = model(**inputs)
             #print(outputs)
-            logits = outputs[:2][0] # Logits is the actual output. Probabilities between 0 and 1.
+            logits = outputs[:2][0]
+            #logits = outputs[0] # Logits is the actual output. Probabilities between 0 and 1.
             #print(logits)
+            # we take the second column(?)
+            logits = logits[:,1]
+            #probs = torch.softmax(logits, dim=1)[0]
             nb_eval_steps += 1
             # Concatenate all outputs to evaluate in the end.
             if preds is None:
-                preds = logits.detach().cpu().numpy() # PRedictions into numpy mode
+                preds = logits.detach().cpu().numpy().flatten() # PRedictions into numpy mode
+                #print(preds.shape)
             else:
-                batch_predictions = logits.detach().cpu().numpy()
+                batch_predictions = logits.detach().cpu().numpy().flatten()
                 preds = np.append(preds, batch_predictions, axis=0)
-    return preds[0]
+    #print(preds)
+    #print(preds.shape)
+    return preds
