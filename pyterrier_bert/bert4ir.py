@@ -43,7 +43,7 @@ class BERTPipeline(EstimatorBase):
         return self
         
     def transform(self, tr):
-        te_dataset = DFDataset(tr, self.tokenizer, "test")
+        te_dataset = DFDataset(tr, self.tokenizer, "test", doc_attr = self.doc_attr)
         scores = bert4ir_score(self.model, te_dataset)
         tr["score"] = scores
         return tr
@@ -62,7 +62,7 @@ class BERTPipeline(EstimatorBase):
         torch.save(state, filename)
 
 class DFDataset(Dataset):
-    def __init__(self, df, tokenizer, split, tokenizer_batch=8000, doc_attr="body",):
+    def __init__(self, df, tokenizer, split, doc_attr="body", tokenizer_batch=8000):
         '''Initialize a Dataset object. 
         Arguments:
             samples: A list of samples. Each sample should be a tuple with (query_id, doc_id, <label>), where label is optional
@@ -143,7 +143,7 @@ class DFDataset(Dataset):
 
 # This is the caching Dataset class. This dataset does not yet check if the files are there already
 class CachingDFDataset(DFDataset):
-    def __init__(self, df, tokenizer, split, directory, tokenizer_batch=8000):
+    def __init__(self, df, tokenizer, split, directory, **kwargs):
         '''Initialize a Dataset object. 
         Arguments:
             samples: A list of samples. Each sample should be a tuple with (query_id, doc_id, <label>), where label is optional
@@ -155,7 +155,7 @@ class CachingDFDataset(DFDataset):
         self.index_dict = dict()
         self.directory = directory
         self.samples_file = open(os.path.join(self.directory, f"{split}_msmarco_samples.tsv"),'w',encoding="utf-8")        
-        super().__init__(df, tokenizer, split, tokenizer_batch=8000)
+        super().__init__(df, tokenizer, split, **kwargs)
         # Dump files in disk, so we don't need to go over it again.
         self.samples_file.close()
         pickle.dump(self.index_dict, open(os.path.join(self.directory, f"{split}_msmarco_index.pkl"), 'wb'))
