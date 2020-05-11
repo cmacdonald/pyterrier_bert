@@ -111,7 +111,7 @@ class DFDataset(Dataset):
             #BERT supports up to 512 tokens. If we have more than that, we need to remove some tokens from the document
             if len(token) >= 512:
                 token_ids = token[:511]
-                token_ids.append(tokenizer.token_to_id("[SEP]"))
+                token_ids.append(self.tokenizer.token_to_id("[SEP]"))
                 segment_ids = tokens['token_type_ids'][idx][:512]
             # With less tokens, we need to "pad" the vectors up to 512.
             else:
