@@ -49,6 +49,7 @@ class BERTPipeline(EstimatorBase):
     def transform(self, tr):
         te_dataset = DFDataset(tr, self.tokenizer, "test", doc_attr = self.doc_attr)
         scores = bert4ir_score(self.model, te_dataset)
+        assert len(scores) == len(tr), "Expected %d scores, but got %d" % (len(tr), len(scores))
         tr["score"] = scores
         return tr
 
@@ -120,7 +121,7 @@ class DFDataset(Dataset):
             # BERT supports up to 512 tokens. batch_encode_plus will enforce this for us.
             # the original implementation had code to truncate long documents with [SEP]
             # or pad short documents with [0] 
-            segment_ids = tokens['token_type_ids'][idx]
+            segment_ids = batch_tokens['token_type_ids'][idx]
             self._store(sample_id, tokens, segment_ids, labels_batch[idx])
             self.processed_samples += 1
 
@@ -401,9 +402,9 @@ def bert4ir_score(model, dataset):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 outputs = model(**inputs)
-            print(outputs)
+            #print(outputs)
             logits = outputs[:2][0] # Logits is the actual output. Probabilities between 0 and 1.
-            print(logits)
+            #print(logits)
             nb_eval_steps += 1
             # Concatenate all outputs to evaluate in the end.
             if preds is None:
