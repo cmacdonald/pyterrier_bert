@@ -40,7 +40,9 @@ class BERTPipeline(EstimatorBase):
             va = va[va["rank"] < self.max_valid_rank]
         
         tr_dataset = DFDataset(tr, self.tokenizer, "train", self.doc_attr)
+        assert len(tr_dataset) > 0
         va_dataset = DFDataset(tr, self.tokenizer, "valid", self.doc_attr)
+        assert len(va_dataset) > 0
         self.model = train_bert4ir(self.model, tr_dataset, va_dataset)
         return self
         
@@ -74,6 +76,7 @@ class DFDataset(Dataset):
         '''
         self.tokenizer = tokenizer
         print("Loading and tokenizing dataset of %d rows ..." % len(df))
+        assert len(df) > 0
         self.labels_present = "label" in df.columns
         query_batch = []
         doc_batch = []
@@ -81,9 +84,11 @@ class DFDataset(Dataset):
         labels_batch = []
         self.store={}
         self.processed_samples = 0
-        number_of_batches = math.ceil(len(df) // tokenizer_batch)
+        number_of_batches = math.ceil(len(df) / tokenizer_batch)
+        assert number_of_batches > 0        
         with tqdm(total=number_of_batches, desc="Tokenizer batches") as batch_pbar:
-            for i, row in df.iterrows():
+            i=0
+            for indx, row in df.iterrows():
                 query_batch.append(row["query"])
                 doc_batch.append(row[doc_attr])
                 sample_ids_batch.append(row["qid"] + "_" + row["docno"])
@@ -99,6 +104,7 @@ class DFDataset(Dataset):
                     doc_batch = []
                     sample_ids_batch = []
                     labels_batch = []
+                i += 1
         
 
     def _tokenize_and_dump_batch(self, doc_batch, query_batch, labels_batch,
@@ -107,10 +113,9 @@ class DFDataset(Dataset):
         It also store the positions from the current file into the samples_offset_dict.
         '''
         # Use the tokenizer object
-        #tokens = self.tokenizer.encode_batch(list(zip(query_batch, doc_batch)))
         tokens = self.tokenizer.batch_encode_plus(list(zip(query_batch, doc_batch)))
         for idx, (sample_id, token) in enumerate(zip(sample_ids_batch, tokens['input_ids'])):
-            #BERT supports up to 512 tokens. If we have more than that, we need to remove some tokens from the document
+            # BERT supports up to 512 tokens. If we have more than that, we need to remove some tokens from the document
             if len(token) >= 512:
                 token_ids = token[:511]
                 token_ids.append(self.tokenizer.convert_tokens_to_ids("[SEP]"))
@@ -202,6 +207,7 @@ class CachingDFDataset(DFDataset):
             return (torch.tensor(input_ids, dtype=torch.long),
                     torch.tensor(input_mask, dtype=torch.long),
                     torch.tensor(token_type_ids, dtype=torch.long))
+
     def __len__(self):
         return len(self.samples_offset_dict)
 
@@ -320,7 +326,7 @@ def train_bert4ir(model, train_dataset, dev_dataset):
                 tqdm.write(f"Training loss: {loss.item()} Learning Rate: {scheduler.get_last_lr()[0]}")
             global_step += 1
             
-            # Run an evluation step over the eval dataset. Let's see how we are going.
+            # Run an evluation step over the eval dataset. Let's see how we are doing.
             if global_step%steps_to_eval == 0:
                 eval_loss = 0.0
                 nb_eval_steps = 0
