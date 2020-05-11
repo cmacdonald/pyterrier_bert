@@ -39,9 +39,13 @@ class TestBERT4IR(unittest.TestCase):
         self.assertEqual(4, len(x))
 
     def test_fit(self):
+        longdocstring = "this is an irrelevant document. "
+        longdoclist = longdocstring.split(" ")
+        longdoc = longdoclist * 105
+        self.assertTrue(len(longdoc) > 512)
         df = pd.DataFrame([
             ["q1", "query text", "d1", "doc text", 1],
-            ["q1", "query text", "d1", "this is an irrelevant document", 0],
+            ["q1", "query text", "d1", " ".join(longdoc), 0],
             ], columns=["qid", "query", "docno", "text", "label"])
 
         pipe = BERTPipeline(doc_attr="text")
