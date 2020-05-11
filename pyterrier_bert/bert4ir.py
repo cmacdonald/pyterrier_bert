@@ -75,6 +75,7 @@ class DFDataset(Dataset):
             tokenizer_batch: How many samples to be tokenized at once by the tokenizer object.
         '''
         self.tokenizer = tokenizer
+        tokenizer.padding_side = "right"
         print("Loading and tokenizing dataset of %d rows ..." % len(df))
         assert len(df) > 0
         self.labels_present = "label" in df.columns
@@ -113,19 +114,14 @@ class DFDataset(Dataset):
         It also store the positions from the current file into the samples_offset_dict.
         '''
         # Use the tokenizer object
-        tokens = self.tokenizer.batch_encode_plus(list(zip(query_batch, doc_batch)))
-        for idx, (sample_id, token) in enumerate(zip(sample_ids_batch, tokens['input_ids'])):
-            # BERT supports up to 512 tokens. If we have more than that, we need to remove some tokens from the document
-            if len(token) >= 512:
-                token_ids = token[:511]
-                token_ids.append(self.tokenizer.convert_tokens_to_ids("[SEP]"))
-                segment_ids = tokens['token_type_ids'][idx][:512]
-            # With less tokens, we need to "pad" the vectors up to 512.
-            else:
-                padding = [0] * (512 - len(token))
-                token_ids = token + padding
-                segment_ids = tokens['token_type_ids'][idx] + padding
-            self._store(sample_id, token_ids, segment_ids, labels_batch[idx])
+        batch_tokens = self.tokenizer.batch_encode_plus(list(zip(query_batch, doc_batch)), max_length=512, pad_to_max_length=True)
+        for idx, (sample_id, tokens) in enumerate(zip(sample_ids_batch, batch_tokens['input_ids'])):
+            assert len(tokens) == 512
+            # BERT supports up to 512 tokens. batch_encode_plus will enforce this for us.
+            # the original implementation had code to truncate long documents with [SEP]
+            # or pad short documents with [0] 
+            segment_ids = tokens['token_type_ids'][idx]
+            self._store(sample_id, tokens, segment_ids, labels_batch[idx])
             self.processed_samples += 1
 
     def _store(self, sample_id, token_ids, segment_ids, label):
