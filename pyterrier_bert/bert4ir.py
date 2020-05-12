@@ -392,7 +392,7 @@ def bert4ir_score(model, dataset, batch_size=32):
     preds = None
     nb_eval_steps = 0
     data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=number_of_cpus,shuffle=False)
-    for batch in tqdm(data_loader, desc="Valid batch"):
+    for batch in tqdm(data_loader, desc="Scoring batch"):
         model.eval()
         
         with torch.no_grad(): # Avoid upgrading gradients here
@@ -409,12 +409,11 @@ def bert4ir_score(model, dataset, batch_size=32):
             #logits = outputs[0] # Logits is the actual output. Probabilities between 0 and 1.
             #print(logits)
             # we take the second column(?)
-            logits = logits[:,1]
-            #probs = torch.softmax(logits, dim=1)[0]
+            logits = logits[:,0]
             nb_eval_steps += 1
-            # Concatenate all outputs to evaluate in the end.
+            # Concatenate all outputs to one big score array.
             if preds is None:
-                preds = logits.detach().cpu().numpy().flatten() # PRedictions into numpy mode
+                preds = logits.detach().cpu().numpy().flatten() # Predictions into numpy mode
                 #print(preds.shape)
             else:
                 batch_predictions = logits.detach().cpu().numpy().flatten()
