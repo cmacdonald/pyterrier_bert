@@ -101,5 +101,6 @@ Both CEDRPipeline and BERTPipeline support passaging in this form.
 # Credits
 
  - Craig Macdonald, University of Glasgow
+ - Alberto Ueda, UFMG
 
 Code in BERTPipeline is adapted from that by Athur Camara, University of Delft.
