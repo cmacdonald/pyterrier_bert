@@ -78,7 +78,7 @@ pt.pipelines.Experiment(topicsTest,
 
 ### Passaging
 
-You can apply passaging in the same fashion as Dai & Callan (SIGIR 2020) by adding additional transformers to the pipeline:
+You can apply passaging in the same fashion as Dai & Callan (SIGIR 2019) by adding additional transformers to the pipeline:
 ```python
 from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage
 
@@ -103,4 +103,10 @@ Both CEDRPipeline and BERTPipeline support passaging in this form.
  - Craig Macdonald, University of Glasgow
  - Alberto Ueda, UFMG
 
-Code in BERTPipeline is adapted from that by Athur Camara, University of Delft.
+Code in BERTPipeline is adapted from that by Arthur Camara, University of Delft.
+
+# References
+
+1. Sean MacAvaney, Andrew Yates, Arman Cohan, Nazli Goharian: CEDR: Contextualized Embeddings for Document Ranking. SIGIR 2019: 1101-1104
+2. Zhuyun Dai, Jamie Callan: Deeper Text Understanding for IR with Contextual Neural Language Modeling. SIGIR 2019: 985-988
+3. Arthur Câmara, Claudia Hauff: Diagnosing BERT with Retrieval Heuristics. ECIR (1) 2020: 605-618
