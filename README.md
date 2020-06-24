@@ -2,7 +2,7 @@
 
 This package contains two integrations of BERT that can be used with [PyTerrier](https://github.com/terrier-org/pyterrier):
 1. [CEDR](https://github.com/Georgetown-IR-Lab/cedr), from the Georgetown IR Lab, by MacAveney et al.
-2. [BERT4IR](https://github.com/ArthurCamara/Bert4IR), by Athur Camara, Unviersity of Delft.
+2. [BERT4IR](https://github.com/ArthurCamara/Bert4IR), by Athur Camara, University of Delft.
 
 ## Installation
 
@@ -59,7 +59,6 @@ pt.pipelines.Experiment(topicsTest,
                         names=["DPH", "DPH + CEDR BERT"])
 ```
 
-
 ### BERT4IR Usage
 
 ```python
@@ -76,3 +75,31 @@ pt.pipelines.Experiment(topicsTest,
                         qrelsTest, 
                         names=["DPH", "DPH + QE", "DPH + BERT4IR"])
 ```
+
+### Passaging
+
+You can apply passaging in the same fashion as Dai & Callan (SIGIR 2020) by adding additional transformers to the pipeline:
+```python
+from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage
+
+DPH_br = pt.BatchRetrieve(index, controls={"wmodel" : "DPH"}, verbose=True, metadata=["docno", "body", "title"])
+
+pipe_max_passage = DPH_br >> SlidingWindowPassager() >> CEDRPipeline(max_valid_rank=20) >> MaxPassage()
+
+```
+
+You an even apply the passaging aggregation as different features, which could then be comined using learning-to-rank:
+```python
+
+from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage, FirstPassage, MeanPassage
+pipe_passage_features = DPH_br >> SlidingWindowPassager() >> CEDRPipeline(max_valid_rank=20) >> ( MaxPassage() ** FirstPassage() ** MeanPassage() )
+
+```
+
+Both CEDRPipeline and BERTPipeline support passaging in this form.
+
+# Credits
+
+ - Craig Macdonald, University of Glasgow
+
+Code in BERTPipeline is adapted from that by Athur Camara, University of Delft.

@@ -1,4 +1,7 @@
 from pyterrier.transformer import EstimatorBase
+
+from . import add_label_column
+
 class CEDRPipeline(EstimatorBase):
     
     
@@ -19,17 +22,8 @@ class CEDRPipeline(EstimatorBase):
         return dataset
 
     def _make_cedr_run(self, run_df, qrels_df=None):
+        final_DF = add_label_column(run_df, qrels_df)
         from collections import defaultdict
-        if qrels_df is not None:
-            run_df = run_df.merge(qrels_df, on=["qid", "docno"], how="left")
-            run_df["label"] = run_df["label"].fillna(0)
-        if "label" in run_df.columns:
-            qids_with_relevant = run_df[run_df["label"] > 0][["qid"]].drop_duplicates()
-            final_DF = run_df.merge(qids_with_relevant, on="qid")
-            if len(final_DF) == 0:
-                raise ValueError("No queries with relevant documents")
-        else:
-            final_DF = run_df
         run=defaultdict(dict)
         for index, row in final_DF.iterrows():
             run[row['qid']][row['docno']] = float(1)

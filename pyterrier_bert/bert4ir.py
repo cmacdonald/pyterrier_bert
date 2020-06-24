@@ -11,6 +11,7 @@ def path(x):
     return os.path.join(".", x)
 
 from pyterrier.transformer import EstimatorBase
+from . import add_label_column
 
 '''
 The code in this class is based on that by Arthur Camara, found in
@@ -27,13 +28,10 @@ class BERTPipeline(EstimatorBase):
         self.max_valid_rank = max_valid_rank
         self.doc_attr = doc_attr
 
-    def fit(self, tr, qrels_tr, va, qrels_va): 
-        if qrels_tr is not None:
-            tr = tr.merge(qrels_tr, on=["qid", "docno"], how="left")
-            tr["label"] = tr["label"].fillna(0)
-        if qrels_va is not None:
-            va = va.merge(qrels_va, on=["qid", "docno"], how="left")
-            va["label"] = va["label"].fillna(0)
+    def fit(self, tr, qrels_tr, va, qrels_va):
+        tr = add_label_column(tr, qrels_tr)
+        va = add_label_column(va, qrels_va)
+        
         if self.max_train_rank is not None:
             tr = tr[tr["rank"] < self.max_train_rank]
         if self.max_valid_rank is not None:
