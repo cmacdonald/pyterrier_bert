@@ -6,11 +6,12 @@ class CEDRPipeline(EstimatorBase):
     
     
     
-    def __init__(self, modelname='vanilla_bert', doc_attr="body", max_train_rank=None, max_valid_rank=None):
+    def __init__(self, modelname='vanilla_bert', doc_attr="body", max_train_rank=None, max_valid_rank=None, model_out_dir=None):
             self.modelname = modelname
             self.doc_attr = doc_attr
             self.max_train_rank = max_train_rank
             self.max_valid_rank = max_valid_rank
+            self.model_out_dir = model_out_dir
             
     def _make_cedr_dataset(self, table):
         docs={}
@@ -70,7 +71,7 @@ class CEDRPipeline(EstimatorBase):
             pt.Utils.convert_qrels_to_dict(qrelsTrain),
             valid_run,
             pt.Utils.convert_qrels_to_dict(qrelsValid),
-            None
+            self.model_out_dir
         )
         return self
     

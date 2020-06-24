@@ -27,6 +27,7 @@ class BERTPipeline(EstimatorBase):
         self.max_train_rank = max_train_rank
         self.max_valid_rank = max_valid_rank
         self.doc_attr = doc_attr
+        self.test_batch_size = 32
 
     def fit(self, tr, qrels_tr, va, qrels_va):
         tr = add_label_column(tr, qrels_tr)
@@ -38,13 +39,17 @@ class BERTPipeline(EstimatorBase):
             va = va[va["rank"] < self.max_valid_rank]
         
         tr_dataset = DFDataset(tr, self.tokenizer, "train", self.doc_attr)
+        assert len(tr_dataset) > 0
         va_dataset = DFDataset(tr, self.tokenizer, "valid", self.doc_attr)
+        assert len(va_dataset) > 0
         self.model = train_bert4ir(self.model, tr_dataset, va_dataset)
         return self
         
     def transform(self, tr):
         te_dataset = DFDataset(tr, self.tokenizer, "test", doc_attr = self.doc_attr)
-        scores = bert4ir_score(self.model, te_dataset)
+        # we permit to adjust the batch size to allow better testing
+        scores = bert4ir_score(self.model, te_dataset, batch_size=self.test_batch_size)
+        assert len(scores) == len(tr), "Expected %d scores, but got %d" % (len(tr), len(scores))
         tr["score"] = scores
         return tr
 
@@ -71,7 +76,9 @@ class DFDataset(Dataset):
             tokenizer_batch: How many samples to be tokenized at once by the tokenizer object.
         '''
         self.tokenizer = tokenizer
+        tokenizer.padding_side = "right"
         print("Loading and tokenizing dataset of %d rows ..." % len(df))
+        assert len(df) > 0
         self.labels_present = "label" in df.columns
         query_batch = []
         doc_batch = []
@@ -79,9 +86,11 @@ class DFDataset(Dataset):
         labels_batch = []
         self.store={}
         self.processed_samples = 0
-        number_of_batches = math.ceil(len(df) // tokenizer_batch)
+        number_of_batches = math.ceil(len(df) / tokenizer_batch)
+        assert number_of_batches > 0        
         with tqdm(total=number_of_batches, desc="Tokenizer batches") as batch_pbar:
-            for i, row in df.iterrows():
+            i=0
+            for indx, row in df.iterrows():
                 query_batch.append(row["query"])
                 doc_batch.append(row[doc_attr])
                 sample_ids_batch.append(row["qid"] + "_" + row["docno"])
@@ -97,6 +106,7 @@ class DFDataset(Dataset):
                     doc_batch = []
                     sample_ids_batch = []
                     labels_batch = []
+                i += 1
         
 
     def _tokenize_and_dump_batch(self, doc_batch, query_batch, labels_batch,
@@ -105,20 +115,14 @@ class DFDataset(Dataset):
         It also store the positions from the current file into the samples_offset_dict.
         '''
         # Use the tokenizer object
-        #tokens = self.tokenizer.encode_batch(list(zip(query_batch, doc_batch)))
-        tokens = self.tokenizer.batch_encode_plus(list(zip(query_batch, doc_batch)))
-        for idx, (sample_id, token) in enumerate(zip(sample_ids_batch, tokens['input_ids'])):
-            #BERT supports up to 512 tokens. If we have more than that, we need to remove some tokens from the document
-            if len(token) >= 512:
-                token_ids = token[:511]
-                token_ids.append(self.tokenizer.convert_tokens_to_ids("[SEP]"))
-                segment_ids = tokens['token_type_ids'][idx][:512]
-            # With less tokens, we need to "pad" the vectors up to 512.
-            else:
-                padding = [0] * (512 - len(token))
-                token_ids = token + padding
-                segment_ids = tokens['token_type_ids'][idx] + padding
-            self._store(sample_id, token_ids, segment_ids, labels_batch[idx])
+        batch_tokens = self.tokenizer.batch_encode_plus(list(zip(query_batch, doc_batch)), max_length=512, pad_to_max_length=True)
+        for idx, (sample_id, tokens) in enumerate(zip(sample_ids_batch, batch_tokens['input_ids'])):
+            assert len(tokens) == 512
+            # BERT supports up to 512 tokens. batch_encode_plus will enforce this for us.
+            # the original implementation had code to truncate long documents with [SEP]
+            # or pad short documents with [0] 
+            segment_ids = batch_tokens['token_type_ids'][idx]
+            self._store(sample_id, tokens, segment_ids, labels_batch[idx])
             self.processed_samples += 1
 
     def _store(self, sample_id, token_ids, segment_ids, label):
@@ -200,6 +204,7 @@ class CachingDFDataset(DFDataset):
             return (torch.tensor(input_ids, dtype=torch.long),
                     torch.tensor(input_mask, dtype=torch.long),
                     torch.tensor(token_type_ids, dtype=torch.long))
+
     def __len__(self):
         return len(self.samples_offset_dict)
 
@@ -242,7 +247,7 @@ def train_bert4ir(model, train_dataset, dev_dataset):
         parallel = number_of_cpus
 
     # A data loader is a nice device for generating batches for you easily.
-    # It receives any object that implementes __getitem__(self, idx) and __len__(self)
+    # It receives any object that implements __getitem__(self, idx) and __len__(self)
     train_data_loader = DataLoader(train_dataset, batch_size=train_batch_size, num_workers=number_of_cpus,shuffle=True)
     dev_data_loader = DataLoader(dev_dataset, batch_size=32, num_workers=number_of_cpus,shuffle=True)
 
@@ -318,7 +323,7 @@ def train_bert4ir(model, train_dataset, dev_dataset):
                 tqdm.write(f"Training loss: {loss.item()} Learning Rate: {scheduler.get_last_lr()[0]}")
             global_step += 1
             
-            # Run an evluation step over the eval dataset. Let's see how we are going.
+            # Run an evluation step over the eval dataset. Let's see how we are doing.
             if global_step%steps_to_eval == 0:
                 eval_loss = 0.0
                 nb_eval_steps = 0
@@ -362,7 +367,7 @@ def train_bert4ir(model, train_dataset, dev_dataset):
     model_to_save.save_pretrained(output_dir)
     return model_to_save
 
-def bert4ir_score(model, dataset):
+def bert4ir_score(model, dataset, batch_size=32):
     import warnings
     import numpy as np
     if torch.cuda.is_available():
@@ -384,8 +389,8 @@ def bert4ir_score(model, dataset):
 
     preds = None
     nb_eval_steps = 0
-    data_loader = DataLoader(dataset, batch_size=32, num_workers=number_of_cpus,shuffle=False)
-    for batch in tqdm(data_loader, desc="Valid batch"):
+    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=number_of_cpus,shuffle=False)
+    for batch in tqdm(data_loader, desc="Scoring batch"):
         model.eval()
         
         with torch.no_grad(): # Avoid upgrading gradients here
@@ -397,14 +402,20 @@ def bert4ir_score(model, dataset):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 outputs = model(**inputs)
-            print(outputs)
-            logits = outputs[:2][0] # Logits is the actual output. Probabilities between 0 and 1.
-            print(logits)
+            #print(outputs)
+            logits = outputs[:2][0]
+            #logits = outputs[0] # Logits is the actual output. Probabilities between 0 and 1.
+            #print(logits)
+            # we take the second column(?)
+            logits = logits[:,0]
             nb_eval_steps += 1
-            # Concatenate all outputs to evaluate in the end.
+            # Concatenate all outputs to one big score array.
             if preds is None:
-                preds = logits.detach().cpu().numpy() # PRedictions into numpy mode
+                preds = logits.detach().cpu().numpy().flatten() # Predictions into numpy mode
+                #print(preds.shape)
             else:
-                batch_predictions = logits.detach().cpu().numpy()
+                batch_predictions = logits.detach().cpu().numpy().flatten()
                 preds = np.append(preds, batch_predictions, axis=0)
-    return preds[0]
+    #print(preds)
+    #print(preds.shape)
+    return preds
