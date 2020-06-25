@@ -78,17 +78,20 @@ pt.pipelines.Experiment(topicsTest,
 
 ### Passaging
 
-You can apply passaging in the same fashion as Dai & Callan (SIGIR 2019) by adding additional transformers to the pipeline:
+Documents can be too long for BERT. It is possible to split them down in to passages, for instance by applying a sliding window (of a given size, in terms of number of tokens), which advances by a given number of tokens (called stride) each time. To ensure that there is some possibly-relevant content in each passage, Dai & Callan [3] proposed to prepend the title of the document to each passage.
+
+You can apply passaging in the same fashion as Dai & Callan by adding two additional transformers to the pipeline:
 ```python
 from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage
 
 DPH_br = pt.BatchRetrieve(index, controls={"wmodel" : "DPH"}, verbose=True, metadata=["docno", "body", "title"])
 
-pipe_max_passage = DPH_br >> SlidingWindowPassager() >> CEDRPipeline(max_valid_rank=20) >> MaxPassage()
-
+pipe_max_passage = DPH_br >> \
+    SlidingWindowPassager(passage_length=150, passage_stride=175) >> \
+    CEDRPipeline(max_valid_rank=20) >> MaxPassage()
 ```
 
-You an even apply the passaging aggregation as different features, which could then be comined using learning-to-rank:
+You an even apply the passaging aggregation as different features, which could then be comined using learning-to-rank, such as xgBoost:
 ```python
 
 from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage, FirstPassage, MeanPassage
