@@ -95,7 +95,10 @@ You an even apply the passaging aggregation as different features, which could t
 ```python
 
 from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage, FirstPassage, MeanPassage
-pipe_passage_features = DPH_br >> SlidingWindowPassager() >> CEDRPipeline(max_valid_rank=20) >> ( MaxPassage() ** FirstPassage() ** MeanPassage() )
+pipe_passage_features = DPH_br \
+    >> SlidingWindowPassager() \
+    >> CEDRPipeline(max_valid_rank=20) \
+    >> ( MaxPassage() ** FirstPassage() ** MeanPassage() )
 
 ```
 
