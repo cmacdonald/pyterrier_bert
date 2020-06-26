@@ -19,8 +19,8 @@ def add_label_column(run_df, qrels_df=None):
         final_DF = run_df.merge(qids_with_relevant, on="qid")
         if len(final_DF) == 0:
             raise ValueError("No queries with relevant documents")
+        final_DF["label"] = final_DF["label"].fillna(0)
     else:
         final_DF = run_df
     
-    final_DF["label"] = final_DF["label"].fillna(0)
     return final_DF
