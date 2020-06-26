@@ -20,7 +20,14 @@ class GensimWordMoverDistance(TransformerBase):
 
     def transform(self, topics_res):
         # wmdistance is a _distance_, so we take the negative as our score
-        topics_res["score"] = -1 * topics_res.apply(
-            lambda row: self.wv.wmdistance(list(tokenize(row["query"])), list(tokenize(row[self.doc_attr]))),
-            axis=1)
+
+        lambda_row = lambda row: self.wv.wmdistance(list(tokenize(row["query"])), list(tokenize(row[self.doc_attr])))
+
+        # could take a while, add a progress bar if asked to
+        if self.verbose:
+          tqdm.pandas()
+          topics_res["score"] = -1 * topics_res.progress_apply(lambda_row, axis=1)
+        else:
+          topics_res["score"] = -1 * topics_res.apply(lambda_row, axis=1)
+
         return topics_res
