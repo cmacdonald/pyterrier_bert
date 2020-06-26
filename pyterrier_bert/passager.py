@@ -64,7 +64,7 @@ class MeanPassage(DePassager):
 
 class SlidingWindowPassager(TransformerBase):
 
-    def __init__(self, text_attr='body', title_attr='title', passage_length=150, passage_stride=175, join=' ', **kwargs):
+    def __init__(self, text_attr='body', title_attr='title', passage_length=150, passage_stride=75, join=' ', **kwargs):
         super().__init__(**kwargs)
         self.text_attr=text_attr
         self.title_attr=title_attr
@@ -84,7 +84,7 @@ class SlidingWindowPassager(TransformerBase):
         copy_columns=[]
         for col in ["score", "rank"]:
             if col in df.columns:
-                copy_columns.add(col)
+                copy_columns.append(col)
 
         if len(df) == 0:
             return pd.DataFrame(columns=['qid', 'query', 'docno', self.text_attr, 'score', 'rank'])
