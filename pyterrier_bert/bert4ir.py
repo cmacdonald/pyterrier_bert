@@ -359,10 +359,15 @@ def train_bert4ir(model, train_dataset, dev_dataset):
                 tqdm.write("***** Eval results *****")
                 for key in sorted(results.keys()):
                     tqdm.write(f"  {key} = {str(results[key])}")
+                save_model(model, global_step)
+    model_to_save = save_model(model, global_step)
+    return model_to_save
+
+def save_model(model, global_step):
     output_dir = path(f"checkpoints/checkpoint-{global_step}")
     if not os.path.isdir(output_dir):
         os.makedirs(path(output_dir))
-#             print(f"Saving model checkpoint to {output_dir}")
+    print(f"Saving model checkpoint to {output_dir}")
     model_to_save = model.module if hasattr(model, 'module') else model
     model_to_save.save_pretrained(output_dir)
     return model_to_save
