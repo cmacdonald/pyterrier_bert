@@ -76,6 +76,21 @@ pt.pipelines.Experiment(topicsTest,
                         names=["DPH", "DPH + QE", "DPH + BERT4IR"])
 ```
 
+### Inputs and Outputs
+
+CEDRPipeline/BERTPipeline receive two dataframes - one containing queries and documents, one containing the relevance labels (aka qrels):
+
+The first dataframe contains the following columns:
+ - `qid` - query id
+ - `query` - text of the query
+ - `docno` - document id
+ - `body` (or other attribute specifyed in body_attr) - the text of the document
+
+The second dataframe contains:
+ - `qid` - query id
+ - `docno` - document id
+ - `label` - relevance label of the document
+
 ### Passaging
 
 Documents can be too long for BERT. It is possible to split them down in to passages, for instance by applying a sliding window (of a given size, in terms of number of tokens), which advances by a given number of tokens (called stride) each time. To ensure that there is some possibly-relevant content in each passage, Dai & Callan [2] proposed to prepend the title of the document to each passage.
