@@ -64,13 +64,14 @@ class MeanPassage(DePassager):
 
 class SlidingWindowPassager(TransformerBase):
 
-    def __init__(self, text_attr='body', title_attr='title', passage_length=150, passage_stride=75, join=' ', **kwargs):
+    def __init__(self, text_attr='body', title_attr='title', passage_length=150, passage_stride=75, join=' ', prepend_title=True, **kwargs):
         super().__init__(**kwargs)
         self.text_attr=text_attr
         self.title_attr=title_attr
         self.passage_length = passage_length
         self.passage_stride= passage_stride
         self.join = join
+        self.prepend_title = prepend_title
 
     def transform(self, topics_and_res):
         return self.applyPassaging(topics_and_res, labels="label" in topics_and_res.columns)
@@ -100,8 +101,9 @@ class SlidingWindowPassager(TransformerBase):
                 if len(toks) < self.passage_length:
                     newRow = row.drop(labels=[self.title_attr])
                     newRow['docno'] = row['docno'] + "%p0"
-                    
-                    newRow[self.text_attr] = str(row[self.title_attr]) + self.join + ' '.join(toks)
+                    newRow[self.text_attr] = ' '.join(toks)
+                    if self.prepend_title:
+                        newRow[self.text_attr] = str(row[self.title_attr]) + self.join + newRow[self.text_attr]
                     if labels:
                         labelCount[row['label']] += 1
                     for col in copy_columns:
@@ -112,7 +114,9 @@ class SlidingWindowPassager(TransformerBase):
                     for i, passage in enumerate( slidingWindow(toks, self.passage_length, self.passage_stride)):
                         newRow = row.drop(labels=[self.title_attr])
                         newRow['docno'] = row['docno'] + "%p" + str(i)
-                        newRow[self.text_attr] = str(row[self.title_attr]) + self.join + ' '.join(passage)
+                        newRow[self.text_attr] = ' '.join(passage)
+                        if self.prepend_title:
+                            newRow[self.text_attr] = str(row[self.title_attr]) + self.join + newRow[self.text_attr]
                         for col in copy_columns:
                             newRow[col] = row[col]
                         if labels:
