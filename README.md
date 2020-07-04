@@ -12,7 +12,25 @@ pip install  --upgrade git+https://github.com/cmacdonald/pyterrier_bert.git
 
 ## Usage
 
-We show experiments using the TREC 2019 Deep Learning track. This assumes you already have a Terrier index that includes the contents of the document recorded as metadata.
+We show experiments using the TREC 2019 Deep Learning track. This assumes you already have a Terrier index that includes the contents of the document recorded as metadata. If you are indexing a TREC-like collection, that would have the following properties:
+```
+TaggedDocument.abstracts=title,body
+# The tags from which to save the text. ELSE is special tag name, which means anything not consumed by other tags.
+TaggedDocument.abstracts.tags=title,ELSE
+# Should the tags from which we create abstracts be case-sensitive?
+TaggedDocument.abstracts.tags.casesensitive=false
+# The max lengths of the abstracts. Abstracts will be cropped to this length. Defaults to empty.
+TaggedDocument.abstracts.lengths=256,4096
+
+# We also need to tell the indexer to store the abstracts generated
+# In addition to the docno, we also need to move the 'title' and 'abstract' abstracts generated to the meta index
+indexer.meta.forward.keys=docno,title,abstract
+# The maximum lengths for the meta index entries.
+indexer.meta.forward.keylens=26,256,4096
+# We will not be doing reverse lookups using the abstracts and so they are not listed here.
+indexer.meta.reverse.keys=docno
+```
+(Pyterrier example to follow)
 
 This is the common setup using Pyterrier
 
