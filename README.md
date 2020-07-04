@@ -30,7 +30,7 @@ indexer.meta.forward.keylens=26,256,4096
 # We will not be doing reverse lookups using the abstracts and so they are not listed here.
 indexer.meta.reverse.keys=docno
 ```
-(Pyterrier example to follow)
+(TODO: Pyterrier configuration for MSMARCO)
 
 This is the common setup using Pyterrier
 
