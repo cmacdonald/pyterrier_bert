@@ -160,7 +160,7 @@ class DFDataset(Dataset):
         self.processed_samples = 0
         number_of_batches = math.ceil(len(df) / tokenizer_batch)
         assert number_of_batches > 0        
-        with tqdm(total=number_of_batches, desc="Tokenizer batches") as batch_pbar:
+        with tqdm(total=len(df), desc="Tokenizer input") as batch_pbar:
             i=0
             for indx, row in df.iterrows():
                 query_batch.append(row["query"])
@@ -173,12 +173,12 @@ class DFDataset(Dataset):
                     labels_batch.append(0)
                 if len(query_batch) == tokenizer_batch or i == len(df) - 1:
                     self._tokenize_and_dump_batch(doc_batch, query_batch, labels_batch, sample_ids_batch)
-                    batch_pbar.update()
                     query_batch = []
                     doc_batch = []
                     sample_ids_batch = []
                     labels_batch = []
                 i += 1
+                batch_pbar.update()
         
 
     def _tokenize_and_dump_batch(self, doc_batch, query_batch, labels_batch,
