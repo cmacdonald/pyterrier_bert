@@ -19,9 +19,30 @@ The code in this class is based on that by Arthur Camara, found in
 https://github.com/ArthurCamara/Bert4IR/blob/master/Train%20BERT.ipynb
 '''
 
+def train_neg_sampling(res_with_labels, neg_ratio):
+    import pandas as pd
+    num_pos_df = res_with_labels[res_with_labels["label"] > 0].groupby("qid")[["label"]].reset_index()
+    keeping_dfs = []
+    for i, row in num_pos_df.iterrows():
+        qid = row["qid"]
+        num_pos = row["label"]
+        num_neg = num_pos * neg_ratio
+        keep = res_with_labels[(res_with_labels["qid"] == qid) & (res_with_labels["label"] == 0)].sample(num_neg)
+        keeping_dfs.append(keep)
+    return pd.concat(keeping_dfs)
+
+
+    
+
 class BERTPipeline(EstimatorBase):
 
-    def __init__(self, *args, get_doc_fn=lambda row: row["body"], max_train_rank=None, max_valid_rank=None, cache_threshold = None, **kwargs):
+    def __init__(self, *args,
+        get_doc_fn=lambda row: row["body"], 
+        max_train_rank=None, 
+        max_valid_rank=None, 
+        cache_threshold = None, 
+        train_neg_sampling = None,
+        **kwargs):
         super().__init__(*args, **kwargs)
         #error will happen below on token_type_ids if you change this to distilbert-base-uncased
         self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
@@ -32,13 +53,13 @@ class BERTPipeline(EstimatorBase):
         self.test_batch_size = 32
         self.cache_threshold = cache_threshold
         self.cache_dir = None
+        self.train_neg_sampling = train_neg_sampling
 
     def make_dataset(self, res, *args, **kwargs):
         if self.cache_threshold is not None and len(res) > self.cache_threshold:
             cachedir = self.cache_dir
             cachedir = tempfile.mkdtemp()
-
-            return CachingDFDataset(res, *args, cachedir, **kwargs)
+            return CachingDFDataset(res, *args, directory=cachedir, **kwargs)
         return DFDataset(res, *args, **kwargs)
 
     def fit(self, tr, qrels_tr, va, qrels_va):
@@ -50,6 +71,10 @@ class BERTPipeline(EstimatorBase):
         if self.max_valid_rank is not None:
             va = va[va["rank"] < self.max_valid_rank]
         
+        if self.train_neg_sampling is not None:
+            assert self.train_neg_sampling > 0
+            tr = train_neg_sampling(tr, self.train_neg_sampling)
+
         tr_dataset = self.make_dataset(tr, self.tokenizer, "train", self.get_doc_fn)
         assert len(tr_dataset) > 0
         va_dataset = self.make_dataset(va, self.tokenizer, "valid", self.get_doc_fn)
@@ -58,7 +83,7 @@ class BERTPipeline(EstimatorBase):
         return self
         
     def transform(self, te):
-        te_dataset = DFDataset(te, self.tokenizer, "test", get_doc_fn=self.get_doc_fn)
+        te_dataset = DFDataset(te, self.tokenizer, split="test", get_doc_fn=self.get_doc_fn)
         # we permit to adjust the batch size to allow better testing
         scores = bert4ir_score(self.model, te_dataset, batch_size=self.test_batch_size)
         assert len(scores) == len(te), "Expected %d scores, but got %d" % (len(tr), len(scores))
@@ -138,7 +163,7 @@ class BERTPipeline(EstimatorBase):
 #class IndexDFDataset
 
 class DFDataset(Dataset):
-    def __init__(self, df, tokenizer, split, get_doc_fn, tokenizer_batch=8000):
+    def __init__(self, df, tokenizer, *args, split, get_doc_fn, tokenizer_batch=8000):
         '''Initialize a Dataset object. 
         Arguments:
             samples: A list of samples. Each sample should be a tuple with (query_id, doc_id, <label>), where label is optional
@@ -219,7 +244,7 @@ class DFDataset(Dataset):
 
 # This is the caching Dataset class. This dataset does not yet check if the files are there already
 class CachingDFDataset(DFDataset):
-    def __init__(self, df, tokenizer, split, directory, **kwargs):
+    def __init__(self, *args, split, directory=None, **kwargs):
         '''Initialize a Dataset object. 
         Arguments:
             samples: A list of samples. Each sample should be a tuple with (query_id, doc_id, <label>), where label is optional
@@ -229,9 +254,10 @@ class CachingDFDataset(DFDataset):
         '''
         self.samples_offset_dict = dict()
         self.index_dict = dict()
+        assert directory is not None
         self.directory = directory
         self.samples_file = open(os.path.join(self.directory, f"{split}_msmarco_samples.tsv"),'w',encoding="utf-8")        
-        super().__init__(df, tokenizer, split, **kwargs)
+        super().__init__(*args, split=split, **kwargs)
         # Dump files in disk, so we don't need to go over it again.
         self.samples_file.close()
         pickle.dump(self.index_dict, open(os.path.join(self.directory, f"{split}_msmarco_index.pkl"), 'wb'))
