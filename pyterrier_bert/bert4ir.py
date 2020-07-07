@@ -75,9 +75,9 @@ class BERTPipeline(EstimatorBase):
             assert self.train_neg_sampling > 0
             tr = train_neg_sampling(tr, self.train_neg_sampling)
 
-        tr_dataset = self.make_dataset(tr, self.tokenizer, "train", self.get_doc_fn)
+        tr_dataset = self.make_dataset(tr, self.tokenizer, split="train", get_doc_fn=self.get_doc_fn)
         assert len(tr_dataset) > 0
-        va_dataset = self.make_dataset(va, self.tokenizer, "valid", self.get_doc_fn)
+        va_dataset = self.make_dataset(va, self.tokenizer, split="valid", get_doc_fn=self.get_doc_fn)
         assert len(va_dataset) > 0
         self.model = train_bert4ir(self.model, tr_dataset, va_dataset)
         return self
