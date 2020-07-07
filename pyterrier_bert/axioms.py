@@ -61,4 +61,4 @@ class AxiomEstimator(EstimatorBase):
 
     def fit(self, resTrain, qrelsTrain,  resValid, qrelsValid):
         (resTrain, qrelsTrain) = self._changeDF(resTrain, qrelsTrain)
-        return parent.fit(resTrain, qrelsTrain,  resValid, qrelsValid) 
+        return self.parent.fit(resTrain, qrelsTrain,  resValid, qrelsValid) 
