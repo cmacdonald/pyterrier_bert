@@ -6,6 +6,7 @@ import pickle
 from torch.utils.data import Dataset
 from transformers import *
 import os
+import tempfile
 
 def path(x):
     return os.path.join(".", x)
@@ -20,14 +21,24 @@ https://github.com/ArthurCamara/Bert4IR/blob/master/Train%20BERT.ipynb
 
 class BERTPipeline(EstimatorBase):
 
-    def __init__(self, *args, doc_attr="body", max_train_rank=None, max_valid_rank=None, **kwargs):
+    def __init__(self, *args, doc_attr="body", max_train_rank=None, max_valid_rank=None, cache_threshold = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased')
         self.model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         self.max_train_rank = max_train_rank
         self.max_valid_rank = max_valid_rank
         self.doc_attr = doc_attr
         self.test_batch_size = 32
+        self.cache_threshold = cache_threshold
+        self.cache_dir = None
+
+    def make_dataset(self, res, *args, **kwargs):
+        if self.cache_threshold is not None and len(res) > self.cache_threshold:
+            cachedir = self.cache_dir
+            cachedir = tempfile.mkdtemp()
+
+            return CachingDFDataset(res, *args, cachedir, **kwargs)
+        return DFDataset(res, *args, **kwargs)
 
     def fit(self, tr, qrels_tr, va, qrels_va):
         tr = add_label_column(tr, qrels_tr)
@@ -38,9 +49,9 @@ class BERTPipeline(EstimatorBase):
         if self.max_valid_rank is not None:
             va = va[va["rank"] < self.max_valid_rank]
         
-        tr_dataset = DFDataset(tr, self.tokenizer, "train", self.doc_attr)
+        tr_dataset = self.make_dataset(tr, self.tokenizer, "train", self.doc_attr)
         assert len(tr_dataset) > 0
-        va_dataset = DFDataset(tr, self.tokenizer, "valid", self.doc_attr)
+        va_dataset = self.make_dataset(va, self.tokenizer, "valid", self.doc_attr)
         assert len(va_dataset) > 0
         self.model = train_bert4ir(self.model, tr_dataset, va_dataset)
         return self
