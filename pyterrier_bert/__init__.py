@@ -6,7 +6,7 @@ def add_label_column(run_df, qrels_df=None):
         # here, check if passaging has happenned
         if "%p" in run_df["docno"][0]:
             # compute the original docno
-            run_df["orig_docno"] = run_df.apply(lambda x: row["docno"].split("%p")[1], axis=1)
+            run_df["orig_docno"] = run_df.apply(lambda row: row["docno"].split("%p")[1], axis=1)
             # join with qrels using the original docno
             run_df = run_df.merge(qrels_df, left_on=["qid", "orig_docno"], right_on=["qid", "docno"], how="left")
             # drop the original docno
