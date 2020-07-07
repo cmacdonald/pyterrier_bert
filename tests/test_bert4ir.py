@@ -23,7 +23,7 @@ class TestBERT4IR(unittest.TestCase):
     def test_caching_dataset(self):
         df = pd.DataFrame([["q1", "query text", "d1", "doc text", 1]], columns=["qid", "query", "docno", "text", "label"])
         tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-        dataset = CachingDFDataset(df, tokenizer, "train", directory=self.test_dir, doc_attr="text")
+        dataset = CachingDFDataset(df, tokenizer, "train", directory=self.test_dir, get_doc_fn=lambda row: row["text"])
         self.assertEqual(len(dataset), 1)
         # make sure we can obtain with 0.
         x = dataset[0]
@@ -32,7 +32,7 @@ class TestBERT4IR(unittest.TestCase):
     def test_dataset(self):
         df = pd.DataFrame([["q1", "query text", "d1", "doc text", 1]], columns=["qid", "query", "docno", "text", "label"])
         tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-        dataset = DFDataset(df, tokenizer, "train", doc_attr="text")
+        dataset = DFDataset(df, tokenizer, "train", get_doc_fn=lambda row: row["text"])
         self.assertEqual(len(dataset), 1)
         # make sure we can obtain with 0.
         x = dataset[0]
@@ -49,7 +49,7 @@ class TestBERT4IR(unittest.TestCase):
             ["q1", "query text", "d1", " ".join(longdoc), 0],
             ], columns=["qid", "query", "docno", "text", "label"])
 
-        pipe = BERTPipeline(doc_attr="text")
+        pipe = BERTPipeline(get_doc_fn=lambda row: row["text"])
         pipe.fit(df, None, df, None)
         pipe.save(self.test_dir + "/model.weights")
         rtr = pipe.transform(df)
@@ -62,7 +62,7 @@ class TestBERT4IR(unittest.TestCase):
         
         # check we can save and load a model
         pipe = None
-        pipe = BERTPipeline(doc_attr="text")
+        pipe = BERTPipeline(get_doc_fn=lambda row: row["text"])
         pipe.load(self.test_dir + "/model.weights")
         rtr2 = pipe.transform(df)
         self.assertTrue(np.allclose(rtr2["score"], rtr["score"]))

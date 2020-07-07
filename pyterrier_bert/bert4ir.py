@@ -21,13 +21,14 @@ https://github.com/ArthurCamara/Bert4IR/blob/master/Train%20BERT.ipynb
 
 class BERTPipeline(EstimatorBase):
 
-    def __init__(self, *args, doc_attr="body", max_train_rank=None, max_valid_rank=None, cache_threshold = None, **kwargs):
+    def __init__(self, *args, get_doc_fn=lambda row: row["body"], max_train_rank=None, max_valid_rank=None, cache_threshold = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased')
+        #error will happen below on token_type_ids if you change this to distilbert-base-uncased
+        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
         self.model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         self.max_train_rank = max_train_rank
         self.max_valid_rank = max_valid_rank
-        self.doc_attr = doc_attr
+        self.get_doc_fn = get_doc_fn
         self.test_batch_size = 32
         self.cache_threshold = cache_threshold
         self.cache_dir = None
@@ -49,20 +50,20 @@ class BERTPipeline(EstimatorBase):
         if self.max_valid_rank is not None:
             va = va[va["rank"] < self.max_valid_rank]
         
-        tr_dataset = self.make_dataset(tr, self.tokenizer, "train", self.doc_attr)
+        tr_dataset = self.make_dataset(tr, self.tokenizer, "train", self.get_doc_fn)
         assert len(tr_dataset) > 0
-        va_dataset = self.make_dataset(va, self.tokenizer, "valid", self.doc_attr)
+        va_dataset = self.make_dataset(va, self.tokenizer, "valid", self.get_doc_fn)
         assert len(va_dataset) > 0
         self.model = train_bert4ir(self.model, tr_dataset, va_dataset)
         return self
         
-    def transform(self, tr):
-        te_dataset = DFDataset(tr, self.tokenizer, "test", doc_attr = self.doc_attr)
+    def transform(self, te):
+        te_dataset = DFDataset(te, self.tokenizer, "test", get_doc_fn=self.get_doc_fn)
         # we permit to adjust the batch size to allow better testing
         scores = bert4ir_score(self.model, te_dataset, batch_size=self.test_batch_size)
-        assert len(scores) == len(tr), "Expected %d scores, but got %d" % (len(tr), len(scores))
-        tr["score"] = scores
-        return tr
+        assert len(scores) == len(te), "Expected %d scores, but got %d" % (len(tr), len(scores))
+        te["score"] = scores
+        return te
 
     def load(self, filename):
         import torch
@@ -77,13 +78,73 @@ class BERTPipeline(EstimatorBase):
                 del state[key]
         torch.save(state, filename)
 
+# class ResultsIndexDataset(Dataset):
+#     batches=[]
+#     def __init__(self, res, index, tokenizer, split, doc_attr="body", tokenizer_batch=8000):
+#         self.res = res
+#         self.index = index
+#         self.tokenizer = tokenizer
+#         assert len(res) > 0
+#         self.labels_present = "label" in res.columns
+#         query_batch = []
+#         doc_batch = []
+#         sample_ids_batch = []
+#         labels_batch = []
+#         self.store={}
+#         self.processed_samples = 0
+#         number_of_batches = math.ceil(len(res) / tokenizer_batch)
+#         tokenizer.padding_side = "right"
+#         assert number_of_batches > 0        
+#         with tqdm(total=number_of_batches, desc="Tokenizer batches") as batch_pbar:
+#             i=0
+#             for indx, row in res.iterrows():
+#                 query_batch.append(row["query"])
+#                 doc_batch.append(row["docid"])
+#                 sample_ids_batch.append(row["qid"] + "_" + row["docno"])
+#                 if self.labels_present:
+#                     labels_batch.append(row["label"])
+#                 else:
+#                     # we dont have a label, but lets append 0, to get rid of if elsewhere.
+#                     labels_batch.append(0)
+#                 if len(query_batch) == tokenizer_batch or i == len(res) - 1:
+#                     batches.append((doc_batch, query_batch, labels_batch, sample_ids_batch))
+#                     # self._tokenize_and_dump_batch(doc_batch, query_batch, labels_batch, sample_ids_batch)
+#                     # batch_pbar.update()
+#                     query_batch = []
+#                     doc_batch = []
+#                     sample_ids_batch = []
+#                     labels_batch = []
+#                 i += 1
+
+
+#     def __getitem__(self, idx):
+#         '''Returns a sample with index idx
+#         DistilBERT does not take into account segment_ids. (indicator if the token comes from the query or the document) 
+#         However, for the sake of completness, we are including it here, together with the attention mask
+#         position_ids, with the positional encoder, is not needed. It's created for you inside the model.
+#         '''
+#         (doc_batch, query_batch, labels_batch, sample_ids_batch) = batches[idx]
+
+#         _, input_ids, token_type_ids, label = self.store[idx]
+#         input_mask = [1] * 512
+#         return (torch.tensor(input_ids, dtype=torch.long),
+#                 torch.tensor(input_mask, dtype=torch.long),
+#                 torch.tensor(token_type_ids, dtype=torch.long),
+#                 torch.tensor([label], dtype=torch.long))
+
+#     def __len__(self):
+#         return len(self.res)
+
+#class IndexDFDataset
+
 class DFDataset(Dataset):
-    def __init__(self, df, tokenizer, split, doc_attr="body", tokenizer_batch=8000):
+    def __init__(self, df, tokenizer, split, get_doc_fn, tokenizer_batch=8000):
         '''Initialize a Dataset object. 
         Arguments:
             samples: A list of samples. Each sample should be a tuple with (query_id, doc_id, <label>), where label is optional
             tokenizer: A tokenizer object from Hugging Face's Tokenizer lib. (need to implement encode_batch())
             split: a name for this dataset
+            get_doc_fn: a function that maps a row into the text of the document 
             tokenizer_batch: How many samples to be tokenized at once by the tokenizer object.
         '''
         self.tokenizer = tokenizer
@@ -103,7 +164,7 @@ class DFDataset(Dataset):
             i=0
             for indx, row in df.iterrows():
                 query_batch.append(row["query"])
-                doc_batch.append(row[doc_attr])
+                doc_batch.append(get_doc_fn(row))
                 sample_ids_batch.append(row["qid"] + "_" + row["docno"])
                 if self.labels_present:
                     labels_batch.append(row["label"])
@@ -142,7 +203,7 @@ class DFDataset(Dataset):
     def __getitem__(self, idx):
         '''Returns a sample with index idx
         DistilBERT does not take into account segment_ids. (indicator if the token comes from the query or the document) 
-        However, for the sake of completness, we are including it here, together with the attention mask
+        However, for the sake of completeness, we are including it here, together with the attention mask
         position_ids, with the positional encoder, is not needed. It's created for you inside the model.
         '''
         _, input_ids, token_type_ids, label = self.store[idx]
