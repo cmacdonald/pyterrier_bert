@@ -27,28 +27,25 @@ def train_neg_sampling(res_with_labels, neg_ratio):
         from QL.
     '''
     import pandas as pd
-    num_pos_df = res_with_labels[res_with_labels["label"] > 0].groupby("qid").count()[["label"]].reset_index().rename(columns={"label" : "pos"})
-    num_neg_df = res_with_labels[res_with_labels["label"] == 0].groupby("qid").count()[["label"]].reset_index().rename(columns={"label" : "neg"})
-    qid2labelcount = num_pos_df.merge(num_neg_df, on=["qid"])
+    
+    qid_groups = res_with_labels.groupby("qid")
     
     keeping_dfs = []
-    for i, row in qid2labelcount.iterrows():
-        qid = row["qid"]
-        num_pos = row["pos"]
-        num_neg = row["neg"]
+    for qid, queryDf in tqdm(qid_groups, desc="Negative sampling", total=qid_groups.ngroups, unit="q"):
+
+        pos = queryDf[queryDf["label"] >= 1]
+        neg = queryDf[queryDf["label"] < 1]
+        num_pos = len(pos)
+        num_neg = len(neg)
         num_neg_needed = num_pos * neg_ratio
         #print("qid %s num_pos %d num_neg %d num_neg needed %d" % (qid, num_pos, num_neg, num_neg_needed))
-       
-        poskeep = res_with_labels[(res_with_labels["qid"] == qid) & (res_with_labels["label"] > 0)]
-        keeping_dfs.append(poskeep)
-        
-        negkeep = res_with_labels[(res_with_labels["qid"] == qid) & (res_with_labels["label"] == 0)]
+
         if num_neg > num_neg_needed:
-            negkeep = negkeep.sample(num_neg_needed)
-        keeping_dfs.append(negkeep)        
+            neg = neg.sample(num_neg_needed)
+        keeping_dfs.append(pos)  
+        keeping_dfs.append(neg) 
         
     #we keep all positives
-    keeping_dfs.append(res_with_labels[res_with_labels["label"] > 0])
     rtr = pd.concat(keeping_dfs)
     # ensure labels are ints
     rtr["label"] = rtr["label"].astype(int)
@@ -86,6 +83,7 @@ class BERTPipeline(EstimatorBase):
         return DFDataset(res, *args, **kwargs)
 
     def fit(self, tr, qrels_tr, va, qrels_va):
+        print("Adding labels...")
         tr = add_label_column(tr, qrels_tr)
         va = add_label_column(va, qrels_va)
         
@@ -96,6 +94,7 @@ class BERTPipeline(EstimatorBase):
         
         if self.train_neg_sampling is not None:
             assert self.train_neg_sampling > 0
+            print("Negative sampling")
             tr = train_neg_sampling(tr, self.train_neg_sampling)
 
         tr_dataset = self.make_dataset(tr, self.tokenizer, split="train", get_doc_fn=self.get_doc_fn)
