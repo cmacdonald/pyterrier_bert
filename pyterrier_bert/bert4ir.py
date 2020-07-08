@@ -15,21 +15,44 @@ from pyterrier.transformer import EstimatorBase
 from . import add_label_column
 
 '''
-The code in this class is based on that by Arthur Camara, found in
+Some of code in this file is based on that by Arthur Camara, found in
 https://github.com/ArthurCamara/Bert4IR/blob/master/Train%20BERT.ipynb
 '''
 
 def train_neg_sampling(res_with_labels, neg_ratio):
+    '''
+        This implements the negative sampling found in Arthur's ECIR 2020 paper:
+        We fine-tuned our BERT10 model with 10 negative samples for each positive
+        sample from the training dataset, randomly picked from the top-100 retrieved
+        from QL.
+    '''
     import pandas as pd
-    num_pos_df = res_with_labels[res_with_labels["label"] > 0].groupby("qid")[["label"]].reset_index()
+    num_pos_df = res_with_labels[res_with_labels["label"] > 0].groupby("qid").count()[["label"]].reset_index().rename(columns={"label" : "pos"})
+    num_neg_df = res_with_labels[res_with_labels["label"] == 0].groupby("qid").count()[["label"]].reset_index().rename(columns={"label" : "neg"})
+    qid2labelcount = num_pos_df.merge(num_neg_df, on=["qid"])
+    
     keeping_dfs = []
-    for i, row in num_pos_df.iterrows():
+    for i, row in qid2labelcount.iterrows():
         qid = row["qid"]
-        num_pos = row["label"]
-        num_neg = num_pos * neg_ratio
-        keep = res_with_labels[(res_with_labels["qid"] == qid) & (res_with_labels["label"] == 0)].sample(num_neg)
-        keeping_dfs.append(keep)
-    return pd.concat(keeping_dfs)
+        num_pos = row["pos"]
+        num_neg = row["neg"]
+        num_neg_needed = num_pos * neg_ratio
+        #print("qid %s num_pos %d num_neg %d num_neg needed %d" % (qid, num_pos, num_neg, num_neg_needed))
+       
+        poskeep = res_with_labels[(res_with_labels["qid"] == qid) & (res_with_labels["label"] > 0)]
+        keeping_dfs.append(poskeep)
+        
+        negkeep = res_with_labels[(res_with_labels["qid"] == qid) & (res_with_labels["label"] == 0)]
+        if num_neg > num_neg_needed:
+            negkeep = negkeep.sample(num_neg_needed)
+        keeping_dfs.append(negkeep)        
+        
+    #we keep all positives
+    keeping_dfs.append(res_with_labels[res_with_labels["label"] > 0])
+    rtr = pd.concat(keeping_dfs)
+    # ensure labels are ints
+    rtr["label"] = rtr["label"].astype(int)
+    return rtr
 
 
     
@@ -103,65 +126,6 @@ class BERTPipeline(EstimatorBase):
                 del state[key]
         torch.save(state, filename)
 
-# class ResultsIndexDataset(Dataset):
-#     batches=[]
-#     def __init__(self, res, index, tokenizer, split, doc_attr="body", tokenizer_batch=8000):
-#         self.res = res
-#         self.index = index
-#         self.tokenizer = tokenizer
-#         assert len(res) > 0
-#         self.labels_present = "label" in res.columns
-#         query_batch = []
-#         doc_batch = []
-#         sample_ids_batch = []
-#         labels_batch = []
-#         self.store={}
-#         self.processed_samples = 0
-#         number_of_batches = math.ceil(len(res) / tokenizer_batch)
-#         tokenizer.padding_side = "right"
-#         assert number_of_batches > 0        
-#         with tqdm(total=number_of_batches, desc="Tokenizer batches") as batch_pbar:
-#             i=0
-#             for indx, row in res.iterrows():
-#                 query_batch.append(row["query"])
-#                 doc_batch.append(row["docid"])
-#                 sample_ids_batch.append(row["qid"] + "_" + row["docno"])
-#                 if self.labels_present:
-#                     labels_batch.append(row["label"])
-#                 else:
-#                     # we dont have a label, but lets append 0, to get rid of if elsewhere.
-#                     labels_batch.append(0)
-#                 if len(query_batch) == tokenizer_batch or i == len(res) - 1:
-#                     batches.append((doc_batch, query_batch, labels_batch, sample_ids_batch))
-#                     # self._tokenize_and_dump_batch(doc_batch, query_batch, labels_batch, sample_ids_batch)
-#                     # batch_pbar.update()
-#                     query_batch = []
-#                     doc_batch = []
-#                     sample_ids_batch = []
-#                     labels_batch = []
-#                 i += 1
-
-
-#     def __getitem__(self, idx):
-#         '''Returns a sample with index idx
-#         DistilBERT does not take into account segment_ids. (indicator if the token comes from the query or the document) 
-#         However, for the sake of completness, we are including it here, together with the attention mask
-#         position_ids, with the positional encoder, is not needed. It's created for you inside the model.
-#         '''
-#         (doc_batch, query_batch, labels_batch, sample_ids_batch) = batches[idx]
-
-#         _, input_ids, token_type_ids, label = self.store[idx]
-#         input_mask = [1] * 512
-#         return (torch.tensor(input_ids, dtype=torch.long),
-#                 torch.tensor(input_mask, dtype=torch.long),
-#                 torch.tensor(token_type_ids, dtype=torch.long),
-#                 torch.tensor([label], dtype=torch.long))
-
-#     def __len__(self):
-#         return len(self.res)
-
-#class IndexDFDataset
-
 class DFDataset(Dataset):
     def __init__(self, df, tokenizer, *args, split, get_doc_fn, tokenizer_batch=8000):
         '''Initialize a Dataset object. 
@@ -174,7 +138,7 @@ class DFDataset(Dataset):
         '''
         self.tokenizer = tokenizer
         tokenizer.padding_side = "right"
-        print("Loading and tokenizing dataset of %d rows ..." % len(df))
+        print("Loading and tokenizing %s dataset of %d rows ..." % (split, len(df)))
         assert len(df) > 0
         self.labels_present = "label" in df.columns
         query_batch = []

@@ -20,6 +20,8 @@ def add_label_column(run_df, qrels_df=None):
         if len(final_DF) == 0:
             raise ValueError("No queries with relevant documents")
         final_DF["label"] = final_DF["label"].fillna(0)
+        # ensure labels are ints
+        final_DF["label"] = final_DF["label"].astype(int)
     else:
         final_DF = run_df
     
