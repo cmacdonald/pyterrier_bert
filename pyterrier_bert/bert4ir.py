@@ -148,7 +148,7 @@ class DFDataset(Dataset):
         self.processed_samples = 0
         number_of_batches = math.ceil(len(df) / tokenizer_batch)
         assert number_of_batches > 0        
-        with tqdm(total=len(df), desc="Tokenizer input") as batch_pbar:
+        with tqdm(total=len(df), desc="Tokenizer input", unit="d") as batch_pbar:
             i=0
             for indx, row in df.iterrows():
                 query_batch.append(row["query"])
