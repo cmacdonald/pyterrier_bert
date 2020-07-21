@@ -73,7 +73,19 @@ class SlidingWindowPassager(TransformerBase):
         self.join = join
         self.prepend_title = prepend_title
 
+    def _check_columns(self, topics_and_res):
+        if not self.text_attr in topics_and_res.columns:
+            raise KeyError("%s is a required input column, but not found in input dataframe." % self.text_attr)
+        if self.prepend_title and not self.title_attr in topics_and_res.columns:
+            raise KeyError("%s is a required input column, but not found in input dataframe. Set prepend_title=False to disable its use." % self.text_attr)
+        if not "docno" in topics_and_res.columns:
+            raise KeyError("%s is a required input column, but not found in input dataframe." % "docno")
+
     def transform(self, topics_and_res):
+        # validate input columns
+        self._check_columns(topics_and_res)
+
+        # now apply the passaging
         return self.applyPassaging(topics_and_res, labels="label" in topics_and_res.columns)
 
     def applyPassaging(self, df, labels=True):
@@ -99,10 +111,11 @@ class SlidingWindowPassager(TransformerBase):
                 rank+=1
                 toks = p.split(row[self.text_attr])
                 if len(toks) < self.passage_length:
-                    newRow = row.drop(labels=[self.title_attr])
+                    newRow = row.copy()
                     newRow['docno'] = row['docno'] + "%p0"
                     newRow[self.text_attr] = ' '.join(toks)
                     if self.prepend_title:
+                        newRow.drop(labels=[self.title_attr], inplace=True)
                         newRow[self.text_attr] = str(row[self.title_attr]) + self.join + newRow[self.text_attr]
                     if labels:
                         labelCount[row['label']] += 1
@@ -112,10 +125,11 @@ class SlidingWindowPassager(TransformerBase):
                 else:
                     passageCount=0
                     for i, passage in enumerate( slidingWindow(toks, self.passage_length, self.passage_stride)):
-                        newRow = row.drop(labels=[self.title_attr])
+                        newRow = row.copy()
                         newRow['docno'] = row['docno'] + "%p" + str(i)
                         newRow[self.text_attr] = ' '.join(passage)
                         if self.prepend_title:
+                            newRow.drop(labels=[self.title_attr], inplace=True)
                             newRow[self.text_attr] = str(row[self.title_attr]) + self.join + newRow[self.text_attr]
                         for col in copy_columns:
                             newRow[col] = row[col]

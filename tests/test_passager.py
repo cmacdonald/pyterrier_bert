@@ -4,16 +4,8 @@ import pyterrier_bert
 from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage, FirstPassage, MeanPassage
 import unittest
 class TestPassager(unittest.TestCase):
-
-    def test_passager(self):
-        dfinput = pd.DataFrame([["q1", "a query", "doc1", "title", "body sentence"]], columns=["qid", "query", "docno", "title", "body"])
-        passager = SlidingWindowPassager()
-        dfoutput = passager(dfinput)
-        self.assertEqual(1, len(dfoutput))
-        self.assertEqual("doc1%p0", dfoutput["docno"][0])
-        self.assertEqual("title body sentence", dfoutput["body"][0])
     
-    def test_passager(self):
+    def test_passager_title(self):
         dfinput = pd.DataFrame([["q1", "a query", "doc1", "title", "body sentence"]], columns=["qid", "query", "docno", "title", "body"])
         passager = SlidingWindowPassager(passage_length=1, passage_stride=1)
         dfoutput = passager(dfinput)
@@ -23,6 +15,17 @@ class TestPassager(unittest.TestCase):
         
         self.assertEqual("title body", dfoutput["body"][0])
         self.assertEqual("title sentence", dfoutput["body"][1])
+
+    def test_passager(self):
+        dfinput = pd.DataFrame([["q1", "a query", "doc1", "body sentence"]], columns=["qid", "query", "docno", "body"])
+        passager = SlidingWindowPassager(passage_length=1, passage_stride=1, prepend_title=False)
+        dfoutput = passager(dfinput)
+        self.assertEqual(2, len(dfoutput))
+        self.assertEqual("doc1%p0", dfoutput["docno"][0])
+        self.assertEqual("doc1%p1", dfoutput["docno"][1])
+        
+        self.assertEqual("body", dfoutput["body"][0])
+        self.assertEqual("sentence", dfoutput["body"][1])
 
     def test_depassager(self):
         dfinput = pd.DataFrame([["q1", "a query", "doc1", "title", "body sentence"]], columns=["qid", "query", "docno", "title", "body"])
