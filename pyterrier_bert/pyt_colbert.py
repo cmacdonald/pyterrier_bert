@@ -26,7 +26,7 @@ class Object(object):
 
 class ColBERTPipeline(TransformerBase):
 
-    def __init__(self, checkpoint, doc_attr="body", verbose=False):
+    def __init__(self, checkpoint, model_name='bert-base-uncased', tokenizer_name='bert-base-uncased', doc_attr="body", verbose=False):
         args = Object()
         args.query_maxlen = 32
         args.doc_maxlen = 180
@@ -35,36 +35,20 @@ class ColBERTPipeline(TransformerBase):
         args.similarity = 'cosine'
         args.checkpoint = checkpoint
         args.pool = Pool(10)
+        args.bert = model_name
+        args.tokenizer_Name = tokenizer_name
         args.colbert, args.checkpoint = load_colbert(args)
         self.args = args
         self.doc_attr = doc_attr
         self.verbose = verbose
-        
-    def _make_topK(self, queries_and_docs):
-        queries = {}
-        topK_docs = defaultdict(list)
-        topK_pids = defaultdict(list)
-        for qd in queries_and_docs.itertuples():
-            qid = qd.qid
-            queries[qid] = qd.query
-            body = getattr(qd, self.doc_attr)
-            topK_docs[qid].append(body)
-            topK_pids[qid].append(qd.docno)
-        return queries, topK_docs, topK_pids
 
     def transform(self, queries_and_docs):
-        #we may not need this. we could simply do a group by
-        queries, topK_docs, topK_pids = self._make_topK(queries_and_docs)
-        keys = sorted(list(queries.keys()))
-        #WHY? 
-        random.shuffle(keys)
-        rtr = []
-        with torch.no_grad():
-            for query_idx, qid in tqdm(enumerate(keys)) if self.verbose else enumerate(keys):
-                query = queries[qid]
-                ranking = rerank(self.args, query, topK_pids[qid], topK_docs[qid], index=None)
-                for rank, (score, pid, passage) in enumerate(ranking):
-                    rtr.append([qid, query, pid, score, rank])
+        groupby = queries_and_docs.groupby("qid")
+        for qid, group in tqdm(groupby, total=len(groupby), unit="q") if self.verbose else groupby:
+            query = group["query"][0]
+            ranking = rerank(self.args, query, group["docno"].values, group[self.doc_attr].values, index=None)
+            for rank, (score, pid, passage) in enumerate(ranking):
+                    rtr.append([qid, query, pid, score, rank])          
         return pd.DataFrame(rtr, columns=["qid", "query", "docno", "score", "rank"])
 
     
