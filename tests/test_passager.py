@@ -39,6 +39,8 @@ class TestPassager(unittest.TestCase):
         dfmax = MaxPassage()(dfpassage)
         self.assertEqual(1, len(dfmax))
         self.assertEqual(1, dfmax["score"][0])
+        self.assertTrue("query" in dfmax.columns)
+        self.assertEqual("a query", dfmax["query"][0])
 
         dffirst = FirstPassage()(dfpassage)
         self.assertEqual(1, len(dffirst))

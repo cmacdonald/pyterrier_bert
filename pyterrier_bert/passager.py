@@ -25,13 +25,10 @@ class DePassager(TransformerBase):
                 lastqid = qid
                 
             docno, passage = row["docno"].split("%p")
-            #print("%s %s" % (docno, passage))
             scoredict[qid][docno][int(passage)] = row["score"]
         rows=[]
-        #print(scoredict)
         for qid in qids:
             for docno in scoredict[qid]:
-                #print(docno)
                 if self.agg == 'first':
                     first_passage_id = min( scoredict[qid][docno].keys() )
                     score = scoredict[qid][docno][first_passage_id]
@@ -42,7 +39,7 @@ class DePassager(TransformerBase):
                 rows.append([qid, docno, score])
         rtr = pd.DataFrame(rows, columns=["qid", "docno", "score"])
         #add the queries back
-        queries = topics_and_res.groupby(["qid"]).count().reset_index()[["qid", "query"]]
+        queries = topics_and_res[["qid", "query"]].dropna(axis=0, subset=["query"]).drop_duplicates()
         rtr = rtr.merge(queries, on=["qid"])
         return rtr
 
