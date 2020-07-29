@@ -36,7 +36,7 @@ class ColBERTPipeline(TransformerBase):
         args.checkpoint = checkpoint
         args.pool = Pool(10)
         args.bert = model_name
-        args.tokenizer_Name = tokenizer_name
+        args.bert_tokenizer = tokenizer_name
         args.colbert, args.checkpoint = load_colbert(args)
         self.args = args
         self.doc_attr = doc_attr
@@ -44,11 +44,13 @@ class ColBERTPipeline(TransformerBase):
 
     def transform(self, queries_and_docs):
         groupby = queries_and_docs.groupby("qid")
-        for qid, group in tqdm(groupby, total=len(groupby), unit="q") if self.verbose else groupby:
-            query = group["query"][0]
-            ranking = rerank(self.args, query, group["docno"].values, group[self.doc_attr].values, index=None)
-            for rank, (score, pid, passage) in enumerate(ranking):
-                    rtr.append([qid, query, pid, score, rank])          
+        rtr=[]
+        with torch.no_grad():
+            for qid, group in tqdm(groupby, total=len(groupby), unit="q") if self.verbose else groupby:
+                query = group["query"].values[0]
+                ranking = rerank(self.args, query, group["docno"].values, group[self.doc_attr].values, index=None)
+                for rank, (score, pid, passage) in enumerate(ranking):
+                        rtr.append([qid, query, pid, score, rank])          
         return pd.DataFrame(rtr, columns=["qid", "query", "docno", "score", "rank"])
 
     
