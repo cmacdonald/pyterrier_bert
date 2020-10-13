@@ -13,7 +13,8 @@ import pandas as pd
 
 import random
 from colbert.evaluation.load_model import load_model
-from colbert.ranking.reranking import rerank
+from colbert.modeling.inference import ModelInference
+from colbert.evaluation.slow import slow_rerank
 from tqdm import tqdm
 
 from collections import defaultdict
@@ -38,7 +39,9 @@ class ColBERTPipeline(TransformerBase):
         args.bert = model_name
         args.bert_tokenizer = tokenizer_name
         args.mask_punctuation = True
+        args.amp = True
         args.colbert, args.checkpoint = load_model(args)
+        args.inference = ModelInference(args.colbert, amp=args.amp)
         self.args = args
         self.doc_attr = doc_attr
         self.verbose = verbose
@@ -49,7 +52,7 @@ class ColBERTPipeline(TransformerBase):
         with torch.no_grad():
             for qid, group in tqdm(groupby, total=len(groupby), unit="q") if self.verbose else groupby:
                 query = group["query"].values[0]
-                ranking = rerank(self.args, query, group["docno"].values, group[self.doc_attr].values, index=None)
+                ranking = slow_rerank(self.args, query, group["docno"].values, group[self.doc_attr].values)
                 for rank, (score, pid, passage) in enumerate(ranking):
                         rtr.append([qid, query, pid, score, rank])          
         return pd.DataFrame(rtr, columns=["qid", "query", "docno", "score", "rank"])
