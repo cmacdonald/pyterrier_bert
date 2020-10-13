@@ -3,7 +3,7 @@ from pyterrier.transformer import TransformerBase
 import os
 import sys
 from os.path import dirname
-sys.path.append(os.path.join( dirname(__file__), '..', 'ColBERT'))
+#sys.path.append(os.path.join( dirname(__file__), '..', 'ColBERT'))
 from multiprocessing import Pool
 
 from . import add_label_column
@@ -12,8 +12,8 @@ import torch
 import pandas as pd
 
 import random
-from src.evaluation.loaders import load_colbert
-from src.evaluation.ranking import rerank
+from colbert.evaluation.load_model import load_model
+from colbert.evaluation.ranking import rerank
 from tqdm import tqdm
 
 from collections import defaultdict
@@ -37,7 +37,7 @@ class ColBERTPipeline(TransformerBase):
         args.pool = Pool(10)
         args.bert = model_name
         args.bert_tokenizer = tokenizer_name
-        args.colbert, args.checkpoint = load_colbert(args)
+        args.colbert, args.checkpoint = load_model(args)
         self.args = args
         self.doc_attr = doc_attr
         self.verbose = verbose
