@@ -1,5 +1,5 @@
 transformers
-torch==1.4.0
+torch
 git+https://github.com/Georgetown-IR-Lab/cedr.git
 git+https://github.com/terrier-org/pyterrier.git#egg=python-terrier
 git+https://github.com/cmacdonald/ColBERT.git@v0.2#egg=ColBERT
