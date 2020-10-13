@@ -3,7 +3,6 @@ from pyterrier.transformer import TransformerBase
 import os
 import sys
 from os.path import dirname
-#sys.path.append(os.path.join( dirname(__file__), '..', 'ColBERT'))
 from multiprocessing import Pool
 
 from . import add_label_column
