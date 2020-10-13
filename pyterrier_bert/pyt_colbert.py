@@ -37,7 +37,7 @@ class ColBERTPipeline(TransformerBase):
         args.pool = Pool(10)
         args.bert = model_name
         args.bert_tokenizer = tokenizer_name
-        args.mask_puncutation = True
+        args.mask_punctuation = True
         args.colbert, args.checkpoint = load_model(args)
         self.args = args
         self.doc_attr = doc_attr
