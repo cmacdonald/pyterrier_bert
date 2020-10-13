@@ -13,7 +13,7 @@ import pandas as pd
 
 import random
 from colbert.evaluation.load_model import load_model
-from colbert.evaluation.ranking import rerank
+from colbert.ranking.reranking import rerank
 from tqdm import tqdm
 
 from collections import defaultdict
