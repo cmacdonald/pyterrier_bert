@@ -52,7 +52,7 @@ class ColBERTPipeline(TransformerBase):
         with torch.no_grad():
             for qid, group in tqdm(groupby, total=len(groupby), unit="q") if self.verbose else groupby:
                 query = group["query"].values[0]
-                ranking = slow_rerank(self.args, query, group["docno"].values, group[self.doc_attr].values)
+                ranking = slow_rerank(self.args, query, group["docno"].values, group[self.doc_attr].values.tolist())
                 for rank, (score, pid, passage) in enumerate(ranking):
                         rtr.append([qid, query, pid, score, rank])          
         return pd.DataFrame(rtr, columns=["qid", "query", "docno", "score", "rank"])
