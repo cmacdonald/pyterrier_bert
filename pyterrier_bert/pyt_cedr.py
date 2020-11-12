@@ -1,6 +1,7 @@
 from pyterrier.transformer import EstimatorBase
 
 from . import add_label_column
+from pyterrier.model import add_ranks
 
 class CEDRPipeline(EstimatorBase):
     
@@ -96,5 +97,6 @@ class CEDRPipeline(EstimatorBase):
         if "score" in queries_and_docs.columns:
             queries_and_docs = queries_and_docs.drop(columns="score")
         
-        final_df = run_df.merge(queries_and_docs, on=["qid", "docno"]) 
+        final_df = run_df.merge(queries_and_docs, on=["qid", "docno"])
+        final_df = add_ranks(final_df)
         return final_df

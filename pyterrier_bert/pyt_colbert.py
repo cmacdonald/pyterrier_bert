@@ -15,7 +15,7 @@ import random
 from src.evaluation.loaders import load_colbert
 from src.evaluation.ranking import rerank
 from pyterrier import tqdm
-
+from pyterrier.model import add_ranks
 from collections import defaultdict
 
 class Object(object):
@@ -51,6 +51,4 @@ class ColBERTPipeline(TransformerBase):
                 ranking = rerank(self.args, query, group["docno"].values, group[self.doc_attr].values, index=None)
                 for rank, (score, pid, passage) in enumerate(ranking):
                         rtr.append([qid, query, pid, score, rank])          
-        return pd.DataFrame(rtr, columns=["qid", "query", "docno", "score", "rank"])
-
-    
+        return add_ranks(pd.DataFrame(rtr, columns=["qid", "query", "docno", "score", "rank"]))

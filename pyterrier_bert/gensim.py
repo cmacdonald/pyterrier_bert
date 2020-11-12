@@ -5,6 +5,7 @@ from gensim.utils import tokenize
 import numpy as np
 from numpy import dot
 from numpy.linalg import norm
+from pyterrier.model import add_ranks
 
 class GensimBase(TransformerBase):
 
@@ -42,8 +43,8 @@ class GensimAverageSimilarity(GensimBase):
       topics_res["score"] = topics_res.progress_apply(lambda_row, axis=1)
     else:
       topics_res["score"] = topics_res.apply(lambda_row, axis=1)
-
-    return topics_res
+    
+    return add_ranks(topics_res)
     
 
 class GensimWordMoverDistance(GensimBase):
@@ -69,4 +70,4 @@ class GensimWordMoverDistance(GensimBase):
     else:
       topics_res["score"] = -1 * topics_res.apply(lambda_row, axis=1)
 
-    return topics_res
+    return add_ranks(topics_res)

@@ -3,6 +3,7 @@ import more_itertools
 from collections import defaultdict
 import re
 from pyterrier import tqdm
+from pyterrier.model import add_ranks
 import pandas as pd
 
 def slidingWindow(sequence, winSize, step):
@@ -38,9 +39,10 @@ class DePassager(TransformerBase):
                     score = sum( scoredict[qid][docno].values() ) / len(scoredict[qid][docno])
                 rows.append([qid, docno, score])
         rtr = pd.DataFrame(rows, columns=["qid", "docno", "score"])
-        #add the queries back
+        # add the queries back
         queries = topics_and_res[["qid", "query"]].dropna(axis=0, subset=["query"]).drop_duplicates()
         rtr = rtr.merge(queries, on=["qid"])
+        rtr = add_ranks(rtr)
         return rtr
 
 class MaxPassage(DePassager):

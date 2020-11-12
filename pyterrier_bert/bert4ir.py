@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 from transformers import *
 import os
 import tempfile
+from pyterrier.model import add_ranks
 
 def path(x):
     return os.path.join(".", x)
@@ -110,7 +111,7 @@ class BERTPipeline(EstimatorBase):
         scores = bert4ir_score(self.model, te_dataset, batch_size=self.test_batch_size)
         assert len(scores) == len(te), "Expected %d scores, but got %d" % (len(tr), len(scores))
         te["score"] = scores
-        return te
+        return add_ranks(te)
 
     def load(self, filename):
         import torch
