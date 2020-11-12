@@ -1,9 +1,14 @@
 
 import pandas as pd
 import pyterrier_bert
+import pyterrier as pt
 from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage, FirstPassage, MeanPassage
 import unittest
 class TestPassager(unittest.TestCase):
+
+    def __init__(self):
+        if not pt.started():
+            pt.init()
     
     def test_passager_title(self):
         dfinput = pd.DataFrame([["q1", "a query", "doc1", "title", "body sentence"]], columns=["qid", "query", "docno", "title", "body"])

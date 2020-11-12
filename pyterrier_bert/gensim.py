@@ -1,5 +1,5 @@
 import gensim.downloader as api
-from tqdm import tqdm
+from pyterrier import tqdm
 from pyterrier.transformer import TransformerBase
 from gensim.utils import tokenize
 import numpy as np

@@ -12,6 +12,10 @@ from transformers import *
 
 class TestBERT4IR(unittest.TestCase):
 
+    def __init__(self):
+        if not pt.started():
+            pt.init()
+
     def setUp(self):
         # Create a temporary directory
         self.test_dir = tempfile.mkdtemp()

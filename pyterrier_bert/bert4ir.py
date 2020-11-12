@@ -1,5 +1,5 @@
 from transformers import AdamW, get_linear_schedule_with_warmup
-from tqdm import tqdm
+from pyterrier import tqdm
 import math
 import torch
 import pickle

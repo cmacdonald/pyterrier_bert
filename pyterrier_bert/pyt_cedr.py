@@ -57,6 +57,7 @@ class CEDRPipeline(EstimatorBase):
         import torch
         from cedr import train
         import pyterrier as pt
+        train.tqdm = pt.tqdm
         
         # load the requested model
         model = train.MODEL_MAP[self.modelname]()
@@ -78,13 +79,15 @@ class CEDRPipeline(EstimatorBase):
     def transform(self, queries_and_docs):
         
         from cedr import train
+        import pyterrier as pt
+        train.tqdm = pt.tqdm
         import pandas as pd
         
         test_run = self._make_cedr_run(queries_and_docs, None)
         dataset = self._make_cedr_dataset(queries_and_docs)
         
         
-        run_values = train.run_model(self.model, dataset, test_run, desc="transform")
+        run_values = train.run_model(self.model, dataset, test_run, desc="CEDRPipeline " + self.modelname)
         run_df_rows = []
         for q, docs in run_values.items():
             for d in docs:

@@ -14,7 +14,7 @@ import pandas as pd
 import random
 from src.evaluation.loaders import load_colbert
 from src.evaluation.ranking import rerank
-from tqdm import tqdm
+from pyterrier import tqdm
 
 from collections import defaultdict
 
@@ -46,7 +46,7 @@ class ColBERTPipeline(TransformerBase):
         groupby = queries_and_docs.groupby("qid")
         rtr=[]
         with torch.no_grad():
-            for qid, group in tqdm(groupby, total=len(groupby), unit="q") if self.verbose else groupby:
+            for qid, group in tqdm(groupby, total=len(groupby), desc='colbert', unit="q") if self.verbose else groupby:
                 query = group["query"].values[0]
                 ranking = rerank(self.args, query, group["docno"].values, group[self.doc_attr].values, index=None)
                 for rank, (score, pid, passage) in enumerate(ranking):

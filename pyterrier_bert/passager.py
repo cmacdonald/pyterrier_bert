@@ -2,7 +2,7 @@ from pyterrier.transformer import TransformerBase
 import more_itertools
 from collections import defaultdict
 import re
-from tqdm import tqdm
+from pyterrier import tqdm
 import pandas as pd
 
 def slidingWindow(sequence, winSize, step):
