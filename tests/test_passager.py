@@ -2,11 +2,12 @@
 import pandas as pd
 import pyterrier_bert
 import pyterrier as pt
-from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage, FirstPassage, MeanPassage
+from pyterrier_bert.passager import SlidingWindowPassager, MaxPassage, FirstPassage, MeanPassage, KMaxAvgPassage
 import unittest
 class TestPassager(unittest.TestCase):
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         if not pt.started():
             pt.init()
     
@@ -54,6 +55,10 @@ class TestPassager(unittest.TestCase):
         dfmean = MeanPassage()(dfpassage)
         self.assertEqual(1, len(dfmean))
         self.assertEqual(0.5, dfmean["score"][0])
+
+        dfmeanK = KMaxAvgPassage(2)(dfpassage)
+        self.assertEqual(1, len(dfmeanK))
+        self.assertEqual(0.5, dfmeanK["score"][0])
 
 
 
