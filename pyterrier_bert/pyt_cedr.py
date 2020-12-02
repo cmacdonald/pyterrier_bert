@@ -88,7 +88,7 @@ class CEDRPipeline(EstimatorBase):
         dataset = self._make_cedr_dataset(queries_and_docs)
         
         
-        run_values = train.run_model(self.model, dataset, test_run, desc="CEDRPipeline " + self.modelname)
+        run_values = train.run_model(self.model, dataset, test_run, desc="CEDR")
         run_df_rows = []
         for q, docs in run_values.items():
             for d in docs:
