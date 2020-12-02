@@ -2,9 +2,9 @@ from pyterrier.transformer import TransformerBase
 import more_itertools
 from collections import defaultdict
 import re
-from pyterrier import tqdm
 from pyterrier.model import add_ranks
 import pandas as pd
+import numpy as np
 
 def slidingWindow(sequence, winSize, step):
     return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
@@ -37,6 +37,10 @@ class DePassager(TransformerBase):
                     score = max( scoredict[qid][docno].values() )
                 if self.agg == 'mean':
                     score = sum( scoredict[qid][docno].values() ) / len(scoredict[qid][docno])
+                if self.agg == "kmaxavg":
+                    values = np.fromiter(scoredict[qid][docno].values(), dtype=float)
+                    K = self.K
+                    score = np.argpartition( values , -K)[-K:].mean() if len(values) > K else values.mean()    
                 rows.append([qid, docno, score])
         rtr = pd.DataFrame(rows, columns=["qid", "docno", "score"])
         # add the queries back
@@ -44,6 +48,18 @@ class DePassager(TransformerBase):
         rtr = rtr.merge(queries, on=["qid"])
         rtr = add_ranks(rtr)
         return rtr
+
+class KMaxAvgPassage(DePassager):
+    """
+        See ICIP at TREC-2020 Deep Learning Track, X.Chen et al. Proc. TREC 2020.
+        Usage:
+            X >> SlidingWindowPassager() >>  Y >>  KMaxAvgPassage(2)
+        where X is some kind of model for obtaining the text of documents and Y is a text scorer, such as BERT or ColBERT
+    """
+    def __init__(self, K, **kwargs):
+        kwargs["agg"] = "kmaxavg"
+        self.K = K
+        super().__init__(**kwargs)
 
 class MaxPassage(DePassager):
     def __init__(self, **kwargs):
@@ -100,6 +116,8 @@ class SlidingWindowPassager(TransformerBase):
 
         if len(df) == 0:
             return pd.DataFrame(columns=['qid', 'query', 'docno', self.text_attr, 'score', 'rank'])
+    
+        from pyterrier import tqdm
         with tqdm('passsaging', total=len(df), ncols=80, desc='passaging', leave=False) as pbar:
             for index, row in df.iterrows():
                 pbar.update(1)
