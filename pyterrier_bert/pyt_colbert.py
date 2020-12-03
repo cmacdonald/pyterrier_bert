@@ -14,7 +14,7 @@ import random
 from colbert.evaluation.load_model import load_model
 from colbert.modeling.inference import ModelInference
 from colbert.evaluation.slow import slow_rerank
-from tqdm import tqdm
+from pyterrier import tqdm
 
 from collections import defaultdict
 
@@ -26,7 +26,7 @@ class Object(object):
 
 class ColBERTPipeline(TransformerBase):
 
-    def __init__(self, checkpoint, model_name='bert-base-uncased', tokenizer_name='bert-base-uncased', doc_attr="body", verbose=False):
+    def __init__(self, checkpoint, model_name='bert-base-uncased', tokenizer_name='bert-base-uncased', doc_attr="body", verbose=False, model=None):
         args = Object()
         args.query_maxlen = 32
         args.doc_maxlen = 180
@@ -34,13 +34,20 @@ class ColBERTPipeline(TransformerBase):
         args.bsize = 128
         args.similarity = 'cosine'
         args.checkpoint = checkpoint
-        args.pool = Pool(10)
         args.bert = model_name
         args.bert_tokenizer = tokenizer_name
         args.mask_punctuation = True
         args.amp = True
-        args.colbert, args.checkpoint = load_model(args)
+        if model is not None and type(checkpoint) != str:
+            print("Reusing provided colbert mmodel")
+            args.colbert = model
+            args.checkpoint = checkpoint
+        else:
+            print("Loading colbert model")
+            args.colbert, args.checkpoint = load_model(args)
+        print("Loading ModelInference")
         args.inference = ModelInference(args.colbert, amp=args.amp)
+        print("Loaded ModelInference")
         self.args = args
         self.doc_attr = doc_attr
         self.verbose = verbose
