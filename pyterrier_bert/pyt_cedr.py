@@ -16,9 +16,9 @@ class CEDRPipeline(EstimatorBase):
     def _make_cedr_dataset(self, table):
         docs={}
         queries={}
-        for index, row in table.iterrows():
-            queries[row['qid']] = row['query']
-            docs[row['docno']] = row[self.doc_attr]
+        for row in table.itertuples():
+            queries[row.qid] = row.query
+            docs[row.docno] = getattr(row, self.doc_attr)
         dataset=(queries, docs)
         return dataset
 
@@ -26,8 +26,8 @@ class CEDRPipeline(EstimatorBase):
         final_DF = add_label_column(run_df, qrels_df)
         from collections import defaultdict
         run=defaultdict(dict)
-        for index, row in final_DF.iterrows():
-            run[row['qid']][row['docno']] = float(1)
+        for row in final_DF.itertuples():
+            run[row.qid][row.docno] = float(1)
         return run
 
     def save(self, filename):
@@ -76,14 +76,15 @@ class CEDRPipeline(EstimatorBase):
         return self
     
     def transform(self, queries_and_docs):
-        
+       
+        import pyterrier as pt 
         from cedr import train
         import pandas as pd
         
         test_run = self._make_cedr_run(queries_and_docs, None)
         dataset = self._make_cedr_dataset(queries_and_docs)
         
-        
+       	train.tqdm = pt.tqdm 
         run_values = train.run_model(self.model, dataset, test_run, desc="transform")
         run_df_rows = []
         for q, docs in run_values.items():
@@ -94,4 +95,5 @@ class CEDRPipeline(EstimatorBase):
             queries_and_docs = queries_and_docs.drop(columns="score")
         
         final_df = run_df.merge(queries_and_docs, on=["qid", "docno"]) 
+        final_df = pt.model.add_ranks(final_df)
         return final_df
